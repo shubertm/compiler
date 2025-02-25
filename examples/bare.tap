@@ -1,0 +1,16 @@
+contract BareVTXO(
+  pubkey user,
+  pubkey server,
+  int timelock
+) {
+  // Cooperative spend path (user + server)
+  function cooperative(signature userSig, signature serverSig) {
+    require(checkMultisig([user, server], [userSig, serverSig]));
+  }
+  
+  // Timeout path (user after timelock)
+  function timeout(signature userSig) {
+    require(checkSig(userSig, user));
+    require(tx.time >= timelock);
+  }
+} 

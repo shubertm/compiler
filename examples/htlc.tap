@@ -1,0 +1,23 @@
+contract HTLC(
+  pubkey sender,
+  pubkey receiver,
+  bytes32 hash,
+  int timelock
+) {
+  // Together path (cooperative close)
+  function together(signature senderSig, signature receiverSig) {
+    require(checkMultisig([sender, receiver], [senderSig, receiverSig]));
+  }
+  
+  // Refund path
+  function refund(signature senderSig) {
+    require(checkSig(senderSig, sender));
+    require(tx.time >= timelock);
+  }
+  
+  // Claim path
+  function claim(signature receiverSig, bytes32 preimage) {
+    require(checkSig(receiverSig, receiver));
+    require(sha256(preimage) == hash);
+  }
+} 

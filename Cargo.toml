@@ -1,0 +1,23 @@
+[package]
+name = "taplang"
+version = "0.1.0"
+edition = "2021"
+description = "A compiler for TapLang - Taproot script language for Bitcoin"
+authors = ["tiero"]
+license = "MIT"
+
+[dependencies]
+pest = "2.7.8"
+pest_derive = "2.7.8"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+clap = { version = "4.5.3", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.10.1"
+assert_fs = "1.1.1"
+predicates = "3.1.0"
+
+[[bin]]
+name = "tapc"
+path = "src/main.rs" 

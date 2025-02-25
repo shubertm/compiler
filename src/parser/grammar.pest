@@ -1,0 +1,90 @@
+// Whitespace and comments are silently consumed
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT = _{ "//" ~ (!"\n" ~ ANY)* ~ "\n" }
+
+// Main entry point - must consume the entire input
+main = { SOI ~ contract ~ EOI }
+
+// Contract definition with strict structure
+contract = { 
+    "contract" ~ identifier ~ 
+    "(" ~ param_list ~ ")" ~ 
+    "{" ~ function* ~ "}" 
+}
+
+// Parameter list with proper comma separation
+param_list = { 
+    (parameter ~ ("," ~ parameter)*)? 
+}
+
+// Parameter definition
+parameter = { data_type ~ identifier }
+
+// Supported data types - atomic rule to prevent partial matches
+data_type = @{ 
+    "pubkey" | 
+    "signature" | 
+    "bytes32" | 
+    "int" | 
+    "bool" 
+}
+
+// Function definition with strict structure
+function = { 
+    "function" ~ identifier ~ 
+    "(" ~ param_list ~ ")" ~ 
+    "{" ~ require_stmt* ~ "}" 
+}
+
+// Require statement
+require_stmt = { 
+    "require" ~ "(" ~ expression ~ ")" ~ ";" 
+}
+
+// Expression types - using silent rule to avoid capturing the rule itself
+expression = _{ 
+    check_sig | 
+    check_multisig | 
+    time_comparison | 
+    hash_comparison 
+}
+
+// CheckSig expression
+check_sig = { 
+    "checkSig" ~ "(" ~ identifier ~ "," ~ identifier ~ ")" 
+}
+
+// CheckMultisig expression
+check_multisig = { 
+    "checkMultisig" ~ "(" ~ array ~ "," ~ array ~ ")" 
+}
+
+// Array of identifiers
+array = { 
+    "[" ~ identifier ~ ("," ~ identifier)* ~ "]" 
+}
+
+// Time-based comparison (tx.time >= timelock)
+time_comparison = { 
+    "tx.time" ~ ">=" ~ identifier 
+}
+
+// SHA256 comparison (sha256(preimage) == hash)
+hash_comparison = { 
+    sha256_func ~ "==" ~ identifier 
+}
+
+// SHA256 function
+sha256_func = {
+    "sha256" ~ "(" ~ identifier ~ ")"
+}
+
+// Identifiers must start with a letter and can contain letters, numbers, and underscores
+identifier = @{ 
+    ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* 
+}
+
+// Number literals are sequences of digits
+number_literal = @{ 
+    ASCII_DIGIT+ 
+}

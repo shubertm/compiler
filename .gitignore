@@ -1,0 +1,35 @@
+# Rust build directory
+/target/
+
+# Rust backup files
+**/*.rs.bk
+
+# Remove Cargo.lock from gitignore if creating an executable, leave it for libraries
+# More information here https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
+Cargo.lock
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Debug artifacts
+*.pdb
+
+# Dependencies directory
+/vendor/
+
+# Environment variables
+.env
+.env.local
+

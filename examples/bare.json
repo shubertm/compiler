@@ -1,0 +1,148 @@
+{
+  "name": "BareVTXO",
+  "parameters": [
+    {
+      "name": "user",
+      "type": "pubkey"
+    },
+    {
+      "name": "server",
+      "type": "pubkey"
+    },
+    {
+      "name": "timelock",
+      "type": "int"
+    }
+  ],
+  "serverKey": "SERVER_KEY",
+  "scriptPaths": [
+    {
+      "function": "cooperative",
+      "serverVariant": true,
+      "operations": [
+        {
+          "op": "OP_2",
+          "data": null
+        },
+        {
+          "op": "<user>",
+          "data": null
+        },
+        {
+          "op": "<server>",
+          "data": null
+        },
+        {
+          "op": "OP_2",
+          "data": null
+        },
+        {
+          "op": "<userSig>",
+          "data": null
+        },
+        {
+          "op": "<serverSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKMULTISIG",
+          "data": null
+        }
+      ]
+    },
+    {
+      "function": "cooperative",
+      "serverVariant": false,
+      "operations": [
+        {
+          "op": "OP_2",
+          "data": null
+        },
+        {
+          "op": "<user>",
+          "data": null
+        },
+        {
+          "op": "<server>",
+          "data": null
+        },
+        {
+          "op": "OP_2",
+          "data": null
+        },
+        {
+          "op": "<userSig>",
+          "data": null
+        },
+        {
+          "op": "<serverSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKMULTISIG",
+          "data": null
+        }
+      ]
+    },
+    {
+      "function": "timeout",
+      "serverVariant": true,
+      "operations": [
+        {
+          "op": "<user>",
+          "data": null
+        },
+        {
+          "op": "<userSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKSIG",
+          "data": null
+        },
+        {
+          "op": "0",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKLOCKTIMEVERIFY",
+          "data": null
+        },
+        {
+          "op": "OP_DROP",
+          "data": null
+        }
+      ]
+    },
+    {
+      "function": "timeout",
+      "serverVariant": false,
+      "operations": [
+        {
+          "op": "<user>",
+          "data": null
+        },
+        {
+          "op": "<userSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKSIG",
+          "data": null
+        },
+        {
+          "op": "0",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKLOCKTIMEVERIFY",
+          "data": null
+        },
+        {
+          "op": "OP_DROP",
+          "data": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "name": "HTLC",
+  "parameters": [
+    {
+      "name": "sender",
+      "type": "pubkey"
+    },
+    {
+      "name": "receiver",
+      "type": "pubkey"
+    },
+    {
+      "name": "hash",
+      "type": "bytes32"
+    },
+    {
+      "name": "timelock",
+      "type": "int"
+    }
+  ],
+  "serverKey": "SERVER_KEY",
+  "scriptPaths": [
+    {
+      "function": "together",
+      "serverVariant": true,
+      "operations": [
+        {
+          "op": "OP_2",
+          "data": null
+        },
+        {
+          "op": "<sender>",
+          "data": null
+        },
+        {
+          "op": "<receiver>",
+          "data": null
+        },
+        {
+          "op": "OP_2",
+          "data": null
+        },
+        {
+          "op": "<senderSig>",
+          "data": null
+        },
+        {
+          "op": "<receiverSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKMULTISIG",
+          "data": null
+        }
+      ]
+    },
+    {
+      "function": "together",
+      "serverVariant": false,
+      "operations": [
+        {
+          "op": "OP_2",
+          "data": null
+        },
+        {
+          "op": "<sender>",
+          "data": null
+        },
+        {
+          "op": "<receiver>",
+          "data": null
+        },
+        {
+          "op": "OP_2",
+          "data": null
+        },
+        {
+          "op": "<senderSig>",
+          "data": null
+        },
+        {
+          "op": "<receiverSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKMULTISIG",
+          "data": null
+        }
+      ]
+    },
+    {
+      "function": "refund",
+      "serverVariant": true,
+      "operations": [
+        {
+          "op": "<sender>",
+          "data": null
+        },
+        {
+          "op": "<senderSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKSIG",
+          "data": null
+        },
+        {
+          "op": "0",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKLOCKTIMEVERIFY",
+          "data": null
+        },
+        {
+          "op": "OP_DROP",
+          "data": null
+        }
+      ]
+    },
+    {
+      "function": "refund",
+      "serverVariant": false,
+      "operations": [
+        {
+          "op": "<sender>",
+          "data": null
+        },
+        {
+          "op": "<senderSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKSIG",
+          "data": null
+        },
+        {
+          "op": "0",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKLOCKTIMEVERIFY",
+          "data": null
+        },
+        {
+          "op": "OP_DROP",
+          "data": null
+        }
+      ]
+    },
+    {
+      "function": "claim",
+      "serverVariant": true,
+      "operations": [
+        {
+          "op": "<receiver>",
+          "data": null
+        },
+        {
+          "op": "<receiverSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKSIG",
+          "data": null
+        },
+        {
+          "op": "<preimage>",
+          "data": null
+        },
+        {
+          "op": "OP_SHA256",
+          "data": null
+        },
+        {
+          "op": "<hash>",
+          "data": null
+        },
+        {
+          "op": "OP_EQUAL",
+          "data": null
+        }
+      ]
+    },
+    {
+      "function": "claim",
+      "serverVariant": false,
+      "operations": [
+        {
+          "op": "<receiver>",
+          "data": null
+        },
+        {
+          "op": "<receiverSig>",
+          "data": null
+        },
+        {
+          "op": "OP_CHECKSIG",
+          "data": null
+        },
+        {
+          "op": "<preimage>",
+          "data": null
+        },
+        {
+          "op": "OP_SHA256",
+          "data": null
+        },
+        {
+          "op": "<hash>",
+          "data": null
+        },
+        {
+          "op": "OP_EQUAL",
+          "data": null
+        }
+      ]
+    }
+  ]
+}
