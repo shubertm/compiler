@@ -16,7 +16,7 @@ contract HTLC(
   pubkey sender,
   pubkey receiver,
   bytes32 hash,
-  int timelock,
+  int refundTime,
   pubkey server
 ) {
   // Cooperative close path
@@ -26,11 +26,11 @@ contract HTLC(
   
   // Refund path
   // This will automatically be compiled into:
-  // 1. Cooperative path: checkSig(sender) && after timelock && checkSig(server)
-  // 2. Exit path: checkSig(sender) && after timelock && after 24 hours
+  // 1. Cooperative path: checkSig(sender) && after refundTime && checkSig(server)
+  // 2. Exit path: checkSig(sender) && after refundTime && after 24 hours
   function refund(signature senderSig) {
     require(checkSig(senderSig, sender));
-    require(tx.time >= timelock);
+    require(tx.time >= refundTime);
   }
   
   // Claim path

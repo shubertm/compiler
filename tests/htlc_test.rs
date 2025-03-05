@@ -19,7 +19,7 @@ contract HTLC(
   pubkey sender,
   pubkey receiver,
   bytes32 hash,
-  int timelock,
+  int refundTime,
   pubkey server
 ) {
   function together(signature senderSig, signature receiverSig) {
@@ -28,7 +28,7 @@ contract HTLC(
   
   function refund(signature senderSig) {
     require(checkSig(senderSig, sender));
-    require(tx.time >= timelock);
+    require(tx.time >= refundTime);
   }
   
   function claim(signature receiverSig, bytes32 preimage) {
@@ -54,7 +54,7 @@ contract HTLC(
     assert_eq!(output.parameters[1].param_type, "pubkey");
     assert_eq!(output.parameters[2].name, "hash");
     assert_eq!(output.parameters[2].param_type, "bytes32");
-    assert_eq!(output.parameters[3].name, "timelock");
+    assert_eq!(output.parameters[3].name, "refundTime");
     assert_eq!(output.parameters[3].param_type, "int");
     assert_eq!(output.parameters[4].name, "server");
     assert_eq!(output.parameters[4].param_type, "pubkey");
@@ -144,7 +144,7 @@ contract HTLC(
   pubkey sender,
   pubkey receiver,
   bytes32 hash,
-  int timelock,
+  int refundTime,
   pubkey server
 ) {
   function together(signature senderSig, signature receiverSig) {
@@ -153,7 +153,7 @@ contract HTLC(
   
   function refund(signature senderSig) {
     require(checkSig(senderSig, sender));
-    require(tx.time >= timelock);
+    require(tx.time >= refundTime);
   }
   
   function claim(signature receiverSig, bytes32 preimage) {

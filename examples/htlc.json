@@ -14,7 +14,7 @@
       "type": "bytes32"
     },
     {
-      "name": "timelock",
+      "name": "refundTime",
       "type": "int"
     },
     {
@@ -235,10 +235,10 @@
       ]
     }
   ],
-  "source": "// Contract configuration options\noptions {\n  // Server key parameter from contract parameters\n  server = server;\n  \n  // Renewal timelock: 7 days (1008 blocks)\n  // The contract must be renewed with the Ark server within this period\n  renew = 1008;\n  \n  // Exit timelock: 24 hours (144 blocks)\n  // Time required to exit unilaterally without server involvement\n  exit = 144;\n}\n\ncontract HTLC(\n  pubkey sender,\n  pubkey receiver,\n  bytes32 hash,\n  int timelock,\n  pubkey server\n) {\n  // Cooperative close path\n  function together(signature senderSig, signature receiverSig) {\n    require(checkMultisig([sender, receiver], [senderSig, receiverSig]));\n  }\n  \n  // Refund path\n  // This will automatically be compiled into:\n  // 1. Cooperative path: checkSig(sender) && after timelock && checkSig(server)\n  // 2. Exit path: checkSig(sender) && after timelock && after 24 hours\n  function refund(signature senderSig) {\n    require(checkSig(senderSig, sender));\n    require(tx.time >= timelock);\n  }\n  \n  // Claim path\n  // This will automatically be compiled into:\n  // 1. Cooperative path: checkSig(receiver) && sha256(preimage) == hash && checkSig(server)\n  // 2. Exit path: checkSig(receiver) && sha256(preimage) == hash && after 24 hours\n  function claim(signature receiverSig, bytes32 preimage) {\n    require(checkSig(receiverSig, receiver));\n    require(sha256(preimage) == hash);\n  }\n} ",
+  "source": "// Contract configuration options\noptions {\n  // Server key parameter from contract parameters\n  server = server;\n  \n  // Renewal timelock: 7 days (1008 blocks)\n  // The contract must be renewed with the Ark server within this period\n  renew = 1008;\n  \n  // Exit timelock: 24 hours (144 blocks)\n  // Time required to exit unilaterally without server involvement\n  exit = 144;\n}\n\ncontract HTLC(\n  pubkey sender,\n  pubkey receiver,\n  bytes32 hash,\n  int refundTime,\n  pubkey server\n) {\n  // Cooperative close path\n  function together(signature senderSig, signature receiverSig) {\n    require(checkMultisig([sender, receiver], [senderSig, receiverSig]));\n  }\n  \n  // Refund path\n  // This will automatically be compiled into:\n  // 1. Cooperative path: checkSig(sender) && after refundTime && checkSig(server)\n  // 2. Exit path: checkSig(sender) && after refundTime && after 24 hours\n  function refund(signature senderSig) {\n    require(checkSig(senderSig, sender));\n    require(tx.time >= refundTime);\n  }\n  \n  // Claim path\n  // This will automatically be compiled into:\n  // 1. Cooperative path: checkSig(receiver) && sha256(preimage) == hash && checkSig(server)\n  // 2. Exit path: checkSig(receiver) && sha256(preimage) == hash && after 24 hours\n  function claim(signature receiverSig, bytes32 preimage) {\n    require(checkSig(receiverSig, receiver));\n    require(sha256(preimage) == hash);\n  }\n} ",
   "compiler": {
     "name": "taplang",
     "version": "0.1.0"
   },
-  "updatedAt": "2025-03-05T23:28:28.331335+00:00"
+  "updatedAt": "2025-03-05T23:37:03.878607+00:00"
 }

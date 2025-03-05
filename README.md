@@ -66,7 +66,7 @@ contract HTLC(
   pubkey sender,
   pubkey receiver,
   bytes32 hash,
-  int timelock,
+  int refundTime,
   pubkey server
 ) {
   // Cooperative close path
@@ -79,11 +79,11 @@ contract HTLC(
   
   // Refund path
   // This will automatically be compiled into two variants:
-  // 1. serverVariant: true - requires sender signature + timelock + server signature
-  // 2. serverVariant: false - requires sender signature + timelock + exit timelock
+  // 1. serverVariant: true - requires sender signature + refundTime + server signature
+  // 2. serverVariant: false - requires sender signature + refundTime + exit timelock
   function refund(signature senderSig) {
     require(checkSig(senderSig, sender));
-    require(tx.time >= timelock);
+    require(tx.time >= refundTime);
   }
   
   // Claim path
@@ -108,7 +108,7 @@ The compiler generates a JSON output with the following structure:
     { "name": "sender", "type": "pubkey" },
     { "name": "receiver", "type": "pubkey" },
     { "name": "hash", "type": "bytes32" },
-    { "name": "timelock", "type": "int" },
+    { "name": "refundTime", "type": "int" },
     { "name": "server", "type": "pubkey" }
   ],
   "functions": [
