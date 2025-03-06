@@ -156,4 +156,6 @@ pub enum Expression {
     Property(String),
     /// SHA256 hash function
     Sha256(String),
+    /// Current input access (tx.input.current)
+    CurrentInput(Option<String>),
 } 

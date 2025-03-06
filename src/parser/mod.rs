@@ -175,10 +175,7 @@ fn parse_function_body(func: &mut Function, pair: Pair<Rule>) {
                 let requirement = parse_complex_expression(expr);
                 
                 // Check if there's an error message
-                if let Some(message) = inner.next() {
-                    // In a more complete implementation, we would store the error message
-                    // For now, we just ignore it
-                }
+                let _message = inner.next().unwrap().as_str().to_string();
                 
                 func.requirements.push(requirement);
             }
@@ -202,44 +199,37 @@ fn parse_complex_expression(pair: Pair<Rule>) -> Requirement {
             let mut inner = pair.into_inner();
             let signature = inner.next().unwrap().as_str().to_string();
             let pubkey = inner.next().unwrap().as_str().to_string();
-            
             Requirement::CheckSig { signature, pubkey }
         }
         Rule::check_sig_from_stack => {
             let mut inner = pair.into_inner();
             let signature = inner.next().unwrap().as_str().to_string();
             let pubkey = inner.next().unwrap().as_str().to_string();
-            let message = inner.next().unwrap().as_str().to_string();
-            
-            // For now, treat this as a regular CheckSig
-            // In a more complete implementation, we would handle this differently
+            let _message = inner.next().unwrap().as_str().to_string();
+            // For now, we'll treat this as a special case of CheckSig
             Requirement::CheckSig { signature, pubkey }
         }
         Rule::check_multisig => {
             let mut inner = pair.into_inner();
             let pubkeys_array = inner.next().unwrap();
-            let sigs_array = inner.next().unwrap();
+            let signatures_array = inner.next().unwrap();
             
-            let mut pubkeys = Vec::new();
-            for pubkey in pubkeys_array.into_inner() {
-                pubkeys.push(pubkey.as_str().to_string());
-            }
+            let pubkeys = pubkeys_array.into_inner()
+                .map(|p| p.as_str().to_string())
+                .collect();
             
-            let mut signatures = Vec::new();
-            for sig in sigs_array.into_inner() {
-                signatures.push(sig.as_str().to_string());
-            }
+            let signatures = signatures_array.into_inner()
+                .map(|s| s.as_str().to_string())
+                .collect();
             
             Requirement::CheckMultisig { signatures, pubkeys }
         }
         Rule::time_comparison => {
             let mut inner = pair.into_inner();
-            let timelock = inner.next().unwrap().as_str().to_string();
-            
-            // This is specifically for tx.time >= identifier
+            let timelock_var = inner.next().unwrap().as_str().to_string();
             Requirement::After { 
-                blocks: 0,
-                timelock_var: Some(timelock),
+                blocks: 0, // This will be filled in by the compiler
+                timelock_var: Some(timelock_var)
             }
         }
         Rule::identifier_comparison => {
@@ -248,94 +238,155 @@ fn parse_complex_expression(pair: Pair<Rule>) -> Requirement {
             let op = inner.next().unwrap().as_str().to_string();
             let right = inner.next().unwrap().as_str().to_string();
             
-            // Handle all identifier comparisons generically
+            // Special case for time comparisons
+            if left == "tx.time" && op == ">=" {
+                return Requirement::After {
+                    blocks: 0,
+                    timelock_var: Some(right)
+                };
+            }
+            
             Requirement::Comparison {
                 left: Expression::Variable(left),
                 op,
-                right: Expression::Variable(right),
+                right: Expression::Variable(right)
+            }
+        }
+        Rule::property_comparison => {
+            let mut inner = pair.into_inner();
+            let left_expr = inner.next().unwrap();
+            let op = inner.next().unwrap().as_str().to_string();
+            let right_expr = inner.next().unwrap();
+            
+            let left = match left_expr.as_rule() {
+                Rule::tx_property_access | Rule::this_property_access => 
+                    Expression::Property(left_expr.as_str().to_string()),
+                _ => panic!("Unexpected left expression in property comparison")
+            };
+            
+            let right = match right_expr.as_rule() {
+                Rule::identifier => Expression::Variable(right_expr.as_str().to_string()),
+                Rule::number_literal => Expression::Literal(right_expr.as_str().to_string()),
+                Rule::tx_property_access | Rule::this_property_access => 
+                    Expression::Property(right_expr.as_str().to_string()),
+                Rule::p2tr_constructor =>
+                    Expression::Property(right_expr.as_str().to_string()),
+                _ => panic!("Unexpected right expression in property comparison")
+            };
+            
+            Requirement::Comparison {
+                left,
+                op,
+                right
             }
         }
         Rule::hash_comparison => {
             let mut inner = pair.into_inner();
             let sha256_func = inner.next().unwrap();
+            let mut sha256_inner = sha256_func.into_inner();
+            let preimage = sha256_inner.next().unwrap().as_str().to_string();
             let hash = inner.next().unwrap().as_str().to_string();
-            
-            // Extract preimage from sha256_func
-            let preimage = sha256_func.into_inner().next().unwrap().as_str().to_string();
             
             Requirement::HashEqual { preimage, hash }
         }
         Rule::binary_operation => {
             let mut inner = pair.into_inner();
-            let left = inner.next().unwrap().as_str().to_string();
+            let left_expr = inner.next().unwrap();
             let op = inner.next().unwrap().as_str().to_string();
-            let right = inner.next().unwrap().as_str().to_string();
+            let right_expr = inner.next().unwrap();
             
-            // Handle property access in binary operations
-            let left_expr = if left.contains(".") {
-                Expression::Property(left)
-            } else {
-                Expression::Variable(left)
+            let left = match left_expr.as_rule() {
+                Rule::identifier => Expression::Variable(left_expr.as_str().to_string()),
+                Rule::number_literal => Expression::Literal(left_expr.as_str().to_string()),
+                _ => panic!("Unexpected left expression in binary operation")
             };
             
-            let right_expr = if right.contains(".") {
-                Expression::Property(right)
-            } else {
-                Expression::Variable(right)
+            let right = match right_expr.as_rule() {
+                Rule::identifier => Expression::Variable(right_expr.as_str().to_string()),
+                Rule::number_literal => Expression::Literal(right_expr.as_str().to_string()),
+                _ => panic!("Unexpected right expression in binary operation")
             };
+            
+            Requirement::Comparison { left, op, right }
+        }
+        Rule::p2tr_constructor => {
+            // For now, we'll just capture the full expression as a string
+            // and handle it during compilation
+            let constructor = pair.as_str().to_string();
             
             Requirement::Comparison {
-                left: left_expr,
-                op,
-                right: right_expr,
+                left: Expression::Property(constructor),
+                op: "==".to_string(),
+                right: Expression::Literal("true".to_string())
             }
         }
-        Rule::property_access => {
-            // For property access, we'll just use the whole expression as a property
-            let expr = pair.as_str().to_string();
+        Rule::tx_property_access | Rule::this_property_access => {
+            // For now, we'll just capture the full expression as a string
+            // and handle it during compilation
+            let property_access = pair.as_str().to_string();
             
-            Requirement::Comparison {
-                left: Expression::Property(expr),
-                op: "==".to_string(),
-                right: Expression::Literal("true".to_string()),
+            // Special handling for tx.input.current
+            if property_access.starts_with("tx.input.current") {
+                // Extract the property after tx.input.current if any
+                // Format is tx.input.current.property or just tx.input.current
+                let property = if property_access == "tx.input.current" {
+                    // If just tx.input.current, default to the entire input
+                    None
+                } else {
+                    // Extract the property after tx.input.current.
+                    let parts: Vec<&str> = property_access.split('.').collect();
+                    if parts.len() >= 4 {
+                        Some(parts[3].to_string())
+                    } else {
+                        None
+                    }
+                };
+                
+                // Create a CurrentInput expression that directly represents the current input
+                Requirement::Comparison {
+                    left: Expression::CurrentInput(property),
+                    op: "==".to_string(),
+                    right: Expression::Literal("true".to_string())
+                }
+            } else {
+                Requirement::Comparison {
+                    left: Expression::Property(property_access),
+                    op: "==".to_string(),
+                    right: Expression::Literal("true".to_string())
+                }
             }
         }
         Rule::function_call => {
-            // For function calls, we'll just use the whole expression as a variable
-            let expr = pair.as_str().to_string();
-            
-            // Special case for sha256 function
-            if expr.starts_with("sha256(") && expr.ends_with(")") {
-                return Requirement::Comparison {
-                    left: Expression::Sha256(expr[7..expr.len()-1].to_string()),
-                    op: "==".to_string(),
-                    right: Expression::Variable("true".to_string()),
-                };
-            }
+            // For now, we'll just capture the full expression as a string
+            // and handle it during compilation
+            let function_call = pair.as_str().to_string();
             
             Requirement::Comparison {
-                left: Expression::Variable(expr),
+                left: Expression::Property(function_call),
                 op: "==".to_string(),
-                right: Expression::Variable("true".to_string()),
+                right: Expression::Literal("true".to_string())
             }
         }
-        Rule::identifier | Rule::number_literal => {
-            // For simple identifiers or literals, use them as variables
-            let expr = pair.as_str().to_string();
+        Rule::identifier => {
+            let identifier = pair.as_str().to_string();
             
             Requirement::Comparison {
-                left: Expression::Variable(expr),
+                left: Expression::Variable(identifier),
                 op: "==".to_string(),
-                right: Expression::Variable("true".to_string()),
+                right: Expression::Literal("true".to_string())
             }
         }
-        _ => {
-            // Default to a comparison for other cases
+        Rule::array_literal => {
+            // For now, we'll just capture the full expression as a string
+            // and handle it during compilation
+            let array_literal = pair.as_str().to_string();
+            
             Requirement::Comparison {
-                left: Expression::Variable("unknown".to_string()),
+                left: Expression::Property(array_literal),
                 op: "==".to_string(),
-                right: Expression::Variable("unknown".to_string()),
+                right: Expression::Literal("true".to_string())
             }
-        },
+        }
+        _ => panic!("Unexpected rule in complex expression: {:?}", pair.as_rule())
     }
 } 

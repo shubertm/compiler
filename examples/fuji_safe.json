@@ -2,8 +2,8 @@
   "contractName": "FujiSafe",
   "constructorInputs": [
     {
-      "name": "borrowAsset",
-      "type": "asset"
+      "name": "assetCommitmentHash",
+      "type": "bytes"
     },
     {
       "name": "borrowAmount",
@@ -35,11 +35,52 @@
     },
     {
       "name": "assetPair",
-      "type": "bytes32"
+      "type": "bytes"
     }
   ],
   "functions": [
     {
+      "name": "verifyFujiBurning",
+      "functionInputs": [
+        {
+          "name": "internalKey",
+          "type": "pubkey"
+        }
+      ],
+      "serverVariant": true,
+      "require": [
+        {
+          "type": "serverSignature"
+        }
+      ],
+      "asm": [
+        "<SERVER_KEY>",
+        "<serverSig>",
+        "OP_CHECKSIG"
+      ]
+    },
+    {
+      "name": "verifyFujiBurning",
+      "functionInputs": [
+        {
+          "name": "internalKey",
+          "type": "pubkey"
+        }
+      ],
+      "serverVariant": false,
+      "require": [
+        {
+          "type": "older",
+          "message": "Exit timelock of 144 blocks"
+        }
+      ],
+      "asm": [
+        "144",
+        "OP_CHECKLOCKTIMEVERIFY",
+        "OP_DROP"
+      ]
+    },
+    {
       "name": "claim",
       "functionInputs": [
         {
@@ -88,10 +129,6 @@
           "type": "int"
         },
         {
-          "name": "timestamp",
-          "type": "int"
-        },
-        {
           "name": "oracleSig",
           "type": "signature"
         },
@@ -117,10 +154,6 @@
       "functionInputs": [
         {
           "name": "currentPrice",
-          "type": "int"
-        },
-        {
-          "name": "timestamp",
           "type": "int"
         },
         {
@@ -228,10 +261,10 @@
       ]
     }
   ],
-  "source": "// Contract configuration options\noptions {\n  // Server key parameter from contract parameters\n  server = treasuryPk;\n  \n  // Exit timelock: 24 hours (144 blocks)\n  exit = 144;\n}\n\n// Simplified Fuji Safe Contract\ncontract FujiSafe(\n  // The asset being borrowed\n  asset borrowAsset,\n  // The amount being borrowed\n  int borrowAmount,\n  // The borrower's public key\n  pubkey borrowerPk,\n  // The treasury's public key\n  pubkey treasuryPk,\n  // The expiration timeout in blocks\n  int expirationTimeout,\n  // The price level for liquidation\n  int priceLevel,\n  // The setup timestamp\n  int setupTimestamp,\n  // The oracle's public key\n  pubkey oraclePk,\n  // The asset pair identifier\n  bytes32 assetPair\n) {\n  // Claim: Treasury can unlock all collateral after expiration\n  function claim(signature treasurySig) {\n    // Check that expiration timeout has passed\n    require(tx.time >= expirationTimeout);\n    \n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk));\n  }\n  \n  // Liquidation: Treasury can unlock all collateral with attestation price below the liquidation target\n  function liquidate(int currentPrice, int timestamp, signature oracleSig, signature treasurySig) {\n    // Check price is below liquidation threshold\n    require(currentPrice < priceLevel);\n    \n    // Verify timestamp is after setup\n    require(tx.time >= setupTimestamp);\n    \n    // Verify oracle signature on price data\n    require(checkSigFromStack(oracleSig, oraclePk, assetPair));\n    \n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk));\n  }\n  \n  // Private Redemption: Only owner can unlock all collateral with key\n  function redeem(signature borrowerSig) {\n    // Require borrower signature\n    require(checkSig(borrowerSig, borrowerPk));\n  }\n  \n  // Treasury Renew: Treasury can unilaterally renew the expiration time\n  function renew(signature treasurySig) {\n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk));\n  }\n} ",
+  "source": "// Contract configuration options\noptions {\n  // Server key parameter from contract parameters\n  server = treasuryPk;\n  \n  // Exit timelock: 24 hours (144 blocks)\n  exit = 144;\n}\n\n// Fuji Safe Contract\ncontract FujiSafe(\n  // The asset commitment hash (client-side validated)\n  bytes assetCommitmentHash,\n  // The amount being borrowed\n  int borrowAmount,\n  // The borrower's public key\n  pubkey borrowerPk,\n  // The treasury's public key\n  pubkey treasuryPk,\n  // The expiration timeout in blocks\n  int expirationTimeout,\n  // The price level for liquidation\n  int priceLevel,\n  // The setup timestamp\n  int setupTimestamp,\n  // The oracle's public key\n  pubkey oraclePk,\n  // The asset pair identifier\n  bytes assetPair\n) {\n  // Helper function to verify Fuji token burning via Taproot output\n  // Takes the pubkey to use as the internal key for the P2TR output\n  function verifyFujiBurning(pubkey internalKey) internal {\n    // In Taproot, we verify the output is a P2TR that commits to our asset\n    // Using the provided pubkey as the internal key\n    bytes p2trScript = new P2TR(internalKey, assetCommitmentHash);\n    \n    // Verify output 0 has the correct P2TR scriptPubKey and value\n    require(tx.outputs[0].scriptPubKey == p2trScript, \"P2TR output mismatch\");\n    require(tx.outputs[0].value == borrowAmount, \"Value mismatch\");\n  }\n\n  // Claim: Treasury can unlock all collateral after expiration when burning Fuji\n  function claim(signature treasurySig) {\n    // Check that expiration timeout has passed\n    require(tx.time >= expirationTimeout, \"Expiration timeout not reached\");\n    \n    // Verify burning of Fuji token using treasury key\n    verifyFujiBurning(treasuryPk);\n    \n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk), \"Invalid treasury signature\");\n  }\n  \n  // Liquidation: Treasury can unlock all collateral with attestation price below the liquidation target\n  function liquidate(int currentPrice, signature oracleSig, signature treasurySig) {\n    // Check price is below liquidation threshold\n    require(currentPrice < priceLevel, \"Price not below liquidation threshold\");\n    \n    // Verify timestamp is after setup\n    require(tx.time >= setupTimestamp, \"Timestamp before setup\");\n    \n    // Create message for oracle signature verification\n    bytes message = sha256(assetPair);\n    \n    // Verify oracle signature on price data\n    require(checkSigFromStack(oracleSig, oraclePk, message), \"Invalid oracle signature\");\n    \n    // Verify burning of Fuji token using treasury key\n    verifyFujiBurning(treasuryPk);\n    \n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk), \"Invalid treasury signature\");\n  }\n  \n  // Private Redemption: Only owner can unlock all collateral with key when burning Fuji\n  function redeem(signature borrowerSig) {\n    // Verify burning of Fuji token using borrower key\n    verifyFujiBurning(borrowerPk);\n    \n    // Require borrower signature\n    require(checkSig(borrowerSig, borrowerPk), \"Invalid borrower signature\");\n  }\n  \n  // Treasury Renew: Treasury can unilaterally renew the expiration time\n  function renew(signature treasurySig) {\n    // For renewal, we ensure the output is another P2TR with the same key and value\n    // This preserves the Taproot commitment structure\n    \n    // Using the new tx.input.current syntax to access the current input's properties\n    bytes currentScript = tx.input.current.scriptPubKey;\n    int currentValue = tx.input.current.value;\n    \n    // Verify that output 0 has the same P2TR script as the current input\n    require(tx.outputs[0].scriptPubKey == currentScript, \"P2TR output mismatch\");\n    require(tx.outputs[0].value == currentValue, \"Value mismatch\");\n    \n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk), \"Invalid treasury signature\");\n  }\n} ",
   "compiler": {
     "name": "taplang",
     "version": "0.1.0"
   },
-  "updatedAt": "2025-03-06T00:17:21.477904+00:00"
+  "updatedAt": "2025-03-06T01:32:53.624582+00:00"
 }

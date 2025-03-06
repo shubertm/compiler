@@ -32,14 +32,7 @@ param_list = {
 parameter = { data_type ~ identifier }
 
 // Supported data types - atomic rule to prevent partial matches
-data_type = @{ 
-    "pubkey" | 
-    "signature" | 
-    "bytes32" | 
-    "int" | 
-    "bool" |
-    "asset"
-}
+data_type = @{ "pubkey" | "signature" | "bytes" | "bytes20" | "bytes32" | "asset" | "int" | "bool" }
 
 // Function definition with strict structure
 function = { 
@@ -75,11 +68,15 @@ complex_expression = _{
     time_comparison |
     identifier_comparison |
     hash_comparison |
+    property_comparison |
     binary_operation |
-    property_access |
+    p2tr_constructor |
+    tx_property_access |
+    this_property_access |
     function_call |
     identifier |
-    number_literal
+    number_literal |
+    array_literal
 }
 
 // Time comparison (tx.time >= timelock)
@@ -92,6 +89,11 @@ identifier_comparison = {
     identifier ~ binary_operator ~ identifier
 }
 
+// Property comparison (property_access operator expression)
+property_comparison = {
+    (tx_property_access | this_property_access) ~ binary_operator ~ (identifier | number_literal | tx_property_access | this_property_access | p2tr_constructor)
+}
+
 // Hash comparison (sha256(preimage) == hash)
 hash_comparison = {
     sha256_func ~ "==" ~ identifier
@@ -100,30 +102,64 @@ hash_comparison = {
 // Binary operations between literals or identifiers
 binary_operation = {
     (number_literal ~ binary_operator ~ (identifier | number_literal)) |
-    (identifier ~ binary_operator ~ (identifier | number_literal)) |
-    (identifier ~ binary_operator ~ identifier)
+    (identifier ~ binary_operator ~ (identifier | number_literal))
 }
 
 binary_operator = { "==" | "<" | ">" | ">=" | "<=" | "!=" | "+" | "-" | "*" | "/" }
 
-// Property access (e.g., tx.output[0].asset)
-property_access = {
-    identifier ~ property_part+
+// P2TR constructor
+p2tr_constructor = {
+    "new" ~ "P2TR" ~ "(" ~ p2tr_constructor_args ~ ")"
 }
 
-// Property part (e.g., .output[0] or .asset)
-property_part = {
-    "." ~ identifier ~ array_access? ~ method_call?
+// Arguments for P2TR constructor
+p2tr_constructor_args = {
+    complex_expression ~ ("," ~ complex_expression)*
 }
 
-// Array access (e.g., [0])
+// Transaction property access with special handling
+tx_property_access = {
+    "tx" ~ "." ~ (
+        // Input.current syntax - new first-class support
+        ("input" ~ "." ~ "current" ~ ("." ~ identifier)*) |
+        // Standard property access
+        (tx_property_part ~ (array_access | ("." ~ tx_property_part))*)
+    )
+}
+
+// This property access
+this_property_access = {
+    "this" ~ "." ~ this_property
+}
+
+// This properties
+this_property = {
+    "activeInputIndex" | "activeBytecode"
+}
+
+// Property part with various access types
+tx_property_part = {
+    tx_special_property | tx_method_call | identifier
+}
+
+// Special properties that have specific meaning
+tx_special_property = { 
+    "time" | "inputs" | "outputs" | "version" | "locktime" | "currentInput"
+}
+
+// Array access with index
 array_access = {
-    "[" ~ number_literal ~ "]"
+    "[" ~ (number_literal | identifier | this_property_access | tx_special_property) ~ "]"
 }
 
-// Method call (e.g., .isOpReturn())
-method_call = {
-    "." ~ identifier ~ "(" ~ ")"
+// Method call
+tx_method_call = {
+    identifier ~ "(" ~ ")"
+}
+
+// Array literal
+array_literal = {
+    "[" ~ complex_expression ~ ("," ~ complex_expression)* ~ "]"
 }
 
 // Function call

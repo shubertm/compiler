@@ -28,7 +28,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         fs::write(&output_path, &json)?;
         
         println!("Successfully compiled {} to {}", input_file, output_file);
-        println!("{}", json);
+        // Remove JSON output to terminal since it's already written to file
+        // println!("{}", json);
         println!("\n-----------------------------------\n");
     }
     

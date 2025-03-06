@@ -191,8 +191,8 @@ fn generate_requirements(function: &crate::models::Function) -> Vec<RequireState
 fn generate_base_asm_instructions(requirements: &[Requirement]) -> Vec<String> {
     let mut asm = Vec::new();
     
-    for requirement in requirements {
-        match requirement {
+    for req in requirements {
+        match req {
             Requirement::CheckSig { signature, pubkey } => {
                 asm.push(format!("<{}>", pubkey));
                 asm.push(format!("<{}>", signature));
@@ -234,35 +234,194 @@ fn generate_base_asm_instructions(requirements: &[Requirement]) -> Vec<String> {
                 asm.push("OP_EQUAL".to_string());
             },
             Requirement::Comparison { left, op, right } => {
-                // Left expression
-                match left {
-                    Expression::Variable(var) => asm.push(format!("<{}>", var)),
-                    Expression::Literal(lit) => asm.push(lit.clone()),
-                    Expression::Property(prop) => {
-                        if prop == "tx.time" {
-                            asm.push("OP_CHECKLOCKTIMEVERIFY".to_string());
-                            asm.push("OP_DROP".to_string());
-                        }
+                match (left, op.as_str(), right) {
+                    (Expression::Variable(var), ">=", Expression::Literal(value)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(value.clone());
                     },
-                    Expression::Sha256(var) => {
+                    (Expression::Variable(var), "==", Expression::Variable(var2)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", var2));
+                    },
+                    (Expression::Variable(var), ">=", Expression::Variable(var2)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", var2));
+                    },
+                    (Expression::Variable(var), "==", Expression::Property(prop)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", prop));
+                    },
+                    (Expression::Variable(var), ">=", Expression::Property(prop)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", prop));
+                    },
+                    (Expression::Variable(var), "==", Expression::Sha256(var2)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", var2));
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::Variable(var), ">=", Expression::Sha256(var2)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", var2));
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::Literal(lit), "==", Expression::Variable(var)) => {
+                        asm.push(lit.clone());
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", var));
+                    },
+                    (Expression::Literal(lit), ">=", Expression::Variable(var)) => {
+                        asm.push(lit.clone());
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", var));
+                    },
+                    (Expression::Literal(lit), "==", Expression::Literal(value)) => {
+                        asm.push(lit.clone());
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(value.clone());
+                    },
+                    (Expression::Literal(lit), ">=", Expression::Literal(value)) => {
+                        asm.push(lit.clone());
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(value.clone());
+                    },
+                    (Expression::Literal(lit), "==", Expression::Property(prop)) => {
+                        asm.push(lit.clone());
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", prop));
+                    },
+                    (Expression::Literal(lit), ">=", Expression::Property(prop)) => {
+                        asm.push(lit.clone());
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", prop));
+                    },
+                    (Expression::Literal(lit), "==", Expression::Sha256(var)) => {
+                        asm.push(lit.clone());
+                        asm.push("OP_EQUAL".to_string());
                         asm.push(format!("<{}>", var));
                         asm.push("OP_SHA256".to_string());
                     },
-                }
-                
-                // Right expression
-                match right {
-                    Expression::Variable(var) => asm.push(format!("<{}>", var)),
-                    Expression::Literal(lit) => asm.push(lit.clone()),
-                    Expression::Property(_) => {},
-                    Expression::Sha256(_) => {},
-                }
-                
-                // Operator
-                match op.as_str() {
-                    "==" => asm.push("OP_EQUAL".to_string()),
-                    ">=" => asm.push("OP_GREATERTHANOREQUAL".to_string()),
-                    _ => {},
+                    (Expression::Literal(lit), ">=", Expression::Sha256(var)) => {
+                        asm.push(lit.clone());
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::Property(prop), "==", Expression::Variable(var)) => {
+                        asm.push(format!("<{}>", prop));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", var));
+                    },
+                    (Expression::Property(prop), ">=", Expression::Variable(var)) => {
+                        asm.push(format!("<{}>", prop));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", var));
+                    },
+                    (Expression::Property(prop), "==", Expression::Literal(value)) => {
+                        asm.push(format!("<{}>", prop));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(value.clone());
+                    },
+                    (Expression::Property(prop), ">=", Expression::Literal(value)) => {
+                        asm.push(format!("<{}>", prop));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(value.clone());
+                    },
+                    (Expression::Property(prop), "==", Expression::Property(prop2)) => {
+                        asm.push(format!("<{}>", prop));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", prop2));
+                    },
+                    (Expression::Property(prop), ">=", Expression::Property(prop2)) => {
+                        asm.push(format!("<{}>", prop));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", prop2));
+                    },
+                    (Expression::Sha256(var), "==", Expression::Variable(var2)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", var2));
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::Sha256(var), ">=", Expression::Variable(var2)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", var2));
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::Sha256(var), "==", Expression::Literal(value)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(value.clone());
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::Sha256(var), ">=", Expression::Literal(value)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(value.clone());
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::Sha256(var), "==", Expression::Property(prop)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_EQUAL".to_string());
+                        asm.push(format!("<{}>", prop));
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::Sha256(var), ">=", Expression::Property(prop)) => {
+                        asm.push(format!("<{}>", var));
+                        asm.push("OP_GREATERTHANOREQUAL".to_string());
+                        asm.push(format!("<{}>", prop));
+                        asm.push("OP_SHA256".to_string());
+                    },
+                    (Expression::CurrentInput(property), "==", Expression::Literal(value)) => {
+                        if value == "true" {
+                            // Handle tx.input.current
+                            // No need for OP_ACTIVEBYTECODESTART as we're directly accessing the current input
+                            
+                            // If there's a property, access it specifically
+                            if let Some(prop) = property {
+                                match prop.as_str() {
+                                    "scriptPubKey" => {
+                                        // Get the current input's script pubkey
+                                        asm.push("OP_INPUTBYTECODE".to_string());
+                                    },
+                                    "value" => {
+                                        // Get the current input's value
+                                        asm.push("OP_INPUTVALUE".to_string());
+                                    },
+                                    "sequence" => {
+                                        // Get the current input's sequence number
+                                        asm.push("OP_INPUTSEQUENCE".to_string());
+                                    },
+                                    "outpoint" => {
+                                        // Get the current input's outpoint (txid + vout)
+                                        asm.push("OP_INPUTOUTPOINT".to_string());
+                                    },
+                                    // Add other properties as needed
+                                    _ => {
+                                        // Default to script pubkey for unknown properties
+                                        asm.push("OP_INPUTBYTECODE".to_string());
+                                    }
+                                }
+                            } else {
+                                // If no property specified, default to the entire input
+                                // This could be a composite of all input properties or just the most commonly used one
+                                asm.push("OP_INPUTBYTECODE".to_string());
+                            }
+                        }
+                    },
+                    // Add a catch-all pattern to fix the non-exhaustive patterns error
+                    _ => {
+                        // Default handling for unmatched patterns
+                        asm.push("OP_FALSE".to_string());
+                    }
                 }
             },
         }

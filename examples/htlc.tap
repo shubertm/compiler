@@ -15,7 +15,7 @@ options {
 contract HTLC(
   pubkey sender,
   pubkey receiver,
-  bytes32 hash,
+  bytes hash,
   int refundTime,
   pubkey server
 ) {
@@ -37,7 +37,7 @@ contract HTLC(
   // This will automatically be compiled into:
   // 1. Cooperative path: checkSig(receiver) && sha256(preimage) == hash && checkSig(server)
   // 2. Exit path: checkSig(receiver) && sha256(preimage) == hash && after 24 hours
-  function claim(signature receiverSig, bytes32 preimage) {
+  function claim(signature receiverSig, bytes preimage) {
     require(checkSig(receiverSig, receiver));
     require(sha256(preimage) == hash);
   }

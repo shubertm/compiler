@@ -2,23 +2,15 @@
 
 A compiler for TapLang - a simple, expressive language for creating Bitcoin Taproot scripts.
 
-## Language Features
+## Get Started
 
-TapLang allows you to define Bitcoin Taproot contracts with:
-
-- Strong typing (pubkey, signature, bytes32, int, bool)
-- Multiple spending paths
-- High-level expressions that compile to Bitcoin Script
-- Block-based options for contract configuration
-- Automatic server-variant path generation for settlement
-
-## Installation
+### Installation
 
 ```bash
 cargo install --path .
 ```
 
-## Usage
+### Basic Usage
 
 ```bash
 tapc contract.tap
@@ -26,12 +18,239 @@ tapc contract.tap
 
 This will compile your TapLang contract to a JSON file that can be used with Bitcoin Taproot libraries.
 
-## Contract Options
+### Compiling Multiple Files
 
-TapLang supports a block-based options approach for contract configuration:
+You can use the provided example to compile multiple files at once:
+
+```bash
+cargo run --example compile_all
+```
+
+This will compile all example contracts and save the output to JSON files.
+
+## Examples
+
+### Basic VTXO Contract
 
 ```solidity
 // Contract configuration options
+options {
+  // Server key parameter from contract parameters
+  server = server;
+  
+  // Exit timelock: 24 hours (144 blocks)
+  exit = 144;
+}
+
+contract BareVTXO(
+  pubkey user,
+  pubkey server
+) {
+  // Single signature spend path
+  // This will automatically be compiled into:
+  // 1. Cooperative path: checkSig(user) && checkSig(server)
+  // 2. Exit path: checkSig(user) && after 144 blocks
+  function spend(signature userSig) {
+    require(checkSig(userSig, user));
+  }
+}
+```
+
+### HTLC Contract
+
+```solidity
+// Contract configuration options
+options {
+  // Server key parameter from contract parameters
+  server = server;
+  
+  // Exit timelock: 24 hours (144 blocks)
+  exit = 144;
+}
+
+contract HTLC(
+  pubkey sender,
+  pubkey receiver,
+  bytes hash,
+  int refundTime,
+  pubkey server
+) {
+  // Cooperative close path
+  function together(signature senderSig, signature receiverSig) {
+    require(checkMultisig([sender, receiver], [senderSig, receiverSig]));
+  }
+  
+  // Refund path
+  function refund(signature senderSig) {
+    require(checkSig(senderSig, sender));
+    require(tx.time >= refundTime);
+  }
+  
+  // Claim path
+  function claim(signature receiverSig, bytes preimage) {
+    require(checkSig(receiverSig, receiver));
+    require(sha256(preimage) == hash);
+  }
+}
+```
+
+### Fuji Safe Contract
+
+```solidity
+// Contract configuration options
+options {
+  // Server key parameter from contract parameters
+  server = treasuryPk;
+  
+  // Exit timelock: 24 hours (144 blocks)
+  exit = 144;
+}
+
+// Fuji Safe Contract
+contract FujiSafe(
+  // The asset commitment hash (client-side validated)
+  bytes assetCommitmentHash,
+  // The amount being borrowed
+  int borrowAmount,
+  // The borrower's public key
+  pubkey borrowerPk,
+  // The treasury's public key
+  pubkey treasuryPk,
+  // The expiration timeout in blocks
+  int expirationTimeout,
+  // The price level for liquidation
+  int priceLevel,
+  // The setup timestamp
+  int setupTimestamp,
+  // The oracle's public key
+  pubkey oraclePk,
+  // The asset pair identifier
+  bytes assetPair
+) {
+  // Helper function to verify Fuji token burning via Taproot output
+  // Takes the pubkey to use as the internal key for the P2TR output
+  function verifyFujiBurning(pubkey internalKey) internal {
+    // In Taproot, we verify the output is a P2TR that commits to our asset
+    // Using the provided pubkey as the internal key
+    bytes p2trScript = new P2TR(internalKey, assetCommitmentHash);
+    
+    // Verify output 0 has the correct P2TR scriptPubKey and value
+    require(tx.outputs[0].scriptPubKey == p2trScript, "P2TR output mismatch");
+    require(tx.outputs[0].value == borrowAmount, "Value mismatch");
+  }
+
+  // Claim: Treasury can unlock all collateral after expiration when burning Fuji
+  function claim(signature treasurySig) {
+    // Check that expiration timeout has passed
+    require(tx.time >= expirationTimeout, "Expiration timeout not reached");
+    
+    // Verify burning of Fuji token using treasury key
+    verifyFujiBurning(treasuryPk);
+    
+    // Require treasury signature
+    require(checkSig(treasurySig, treasuryPk), "Invalid treasury signature");
+  }
+  
+  // Liquidation: Treasury can unlock all collateral with attestation price below the liquidation target
+  function liquidate(int currentPrice, signature oracleSig, signature treasurySig) {
+    // Check price is below liquidation threshold
+    require(currentPrice < priceLevel, "Price not below liquidation threshold");
+    
+    // Verify timestamp is after setup
+    require(tx.time >= setupTimestamp, "Timestamp before setup");
+    
+    // Create message for oracle signature verification
+    bytes message = sha256(assetPair);
+    
+    // Verify oracle signature on price data
+    require(checkSigFromStack(oracleSig, oraclePk, message), "Invalid oracle signature");
+    
+    // Verify burning of Fuji token using treasury key
+    verifyFujiBurning(treasuryPk);
+    
+    // Require treasury signature
+    require(checkSig(treasurySig, treasuryPk), "Invalid treasury signature");
+  }
+  
+  // Private Redemption: Only owner can unlock all collateral with key when burning Fuji
+  function redeem(signature borrowerSig) {
+    // Verify burning of Fuji token using borrower key
+    verifyFujiBurning(borrowerPk);
+    
+    // Require borrower signature
+    require(checkSig(borrowerSig, borrowerPk), "Invalid borrower signature");
+  }
+  
+  // Treasury Renew: Treasury can unilaterally renew the expiration time
+  function renew(signature treasurySig) {
+    // For renewal, we ensure the output is another P2TR with the same key and value
+    // This preserves the Taproot commitment structure
+    
+    // Using the new tx.input.current syntax to access the current input's properties
+    bytes currentScript = tx.input.current.scriptPubKey;
+    int currentValue = tx.input.current.value;
+    
+    // Verify that output 0 has the same P2TR script as the current input
+    require(tx.outputs[0].scriptPubKey == currentScript, "P2TR output mismatch");
+    require(tx.outputs[0].value == currentValue, "Value mismatch");
+    
+    // Require treasury signature
+    require(checkSig(treasurySig, treasuryPk), "Invalid treasury signature");
+  }
+}
+```
+
+## Language Reference
+
+TapLang is a domain-specific language for writing Bitcoin Taproot contracts with a focus on readability and safety.
+
+### Data Types
+
+TapLang supports the following data types:
+
+- `pubkey`: Bitcoin public key
+- `signature`: Bitcoin signature
+- `bytes`: Arbitrary byte array
+- `bytes20`: 20-byte array (useful for hashes)
+- `bytes32`: 32-byte array (useful for hashes)
+- `int`: Integer value
+- `bool`: Boolean value
+- `asset`: Taproot Asset (for asset-aware contracts)
+
+### Contract Structure
+
+A TapLang contract consists of:
+
+1. An optional `options` block for configuration
+2. A `contract` declaration with parameters
+3. One or more `function` declarations that define spending paths
+
+Example:
+
+```solidity
+// Optional configuration
+options {
+  server = treasuryPk;
+  exit = 144;
+}
+
+// Contract declaration with parameters
+contract MyContract(
+  pubkey user,
+  pubkey server
+) {
+  // Function declarations (spending paths)
+  function spend(signature userSig) {
+    require(checkSig(userSig, user));
+  }
+}
+```
+
+### Options Block
+
+The options block configures contract-wide settings:
+
+```solidity
 options {
   // Server key parameter from contract parameters
   server = server;
@@ -50,226 +269,169 @@ Available options:
 - `renew`: Specifies the renewal timelock in blocks
 - `exit`: Specifies the exit timelock in blocks
 
-## Example HTLC Contract
+### Functions
+
+Functions define spending paths for the contract:
 
 ```solidity
-// Contract configuration options
-options {
-  // Server key parameter from contract parameters
-  server = server;
-  
-  // Exit timelock: 24 hours (144 blocks)
-  exit = 144;
-}
-
-contract HTLC(
-  pubkey sender,
-  pubkey receiver,
-  bytes32 hash,
-  int refundTime,
-  pubkey server
-) {
-  // Cooperative close path
-  // This will automatically be compiled into two variants:
-  // 1. serverVariant: true - requires multisig + server signature
-  // 2. serverVariant: false - requires multisig + exit timelock
-  function together(signature senderSig, signature receiverSig) {
-    require(checkMultisig([sender, receiver], [senderSig, receiverSig]));
-  }
-  
-  // Refund path
-  // This will automatically be compiled into two variants:
-  // 1. serverVariant: true - requires sender signature + refundTime + server signature
-  // 2. serverVariant: false - requires sender signature + refundTime + exit timelock
-  function refund(signature senderSig) {
-    require(checkSig(senderSig, sender));
-    require(tx.time >= refundTime);
-  }
-  
-  // Claim path
-  // This will automatically be compiled into two variants:
-  // 1. serverVariant: true - requires receiver signature + valid preimage + server signature
-  // 2. serverVariant: false - requires receiver signature + valid preimage + exit timelock
-  function claim(signature receiverSig, bytes32 preimage) {
-    require(checkSig(receiverSig, receiver));
-    require(sha256(preimage) == hash);
-  }
+function spend(signature userSig) {
+  require(checkSig(userSig, user));
 }
 ```
 
-## Example Fuji Safe Contract
-
-The Fuji Safe contract demonstrates advanced features of TapLang, including:
-
-- Internal functions
-- Error messages
-- Transaction introspection
-- Method chaining
-- Complex expressions
-- New data types for Taproot Assets
+Functions can be marked as `internal` to indicate they are helper functions and not spending paths:
 
 ```solidity
-// Contract configuration options
-options {
-  // Server key parameter from contract parameters
-  server = treasuryPk;
-  
-  // Exit timelock: 24 hours (144 blocks)
-  exit = 144;
-}
-
-// Fuji Safe Contract
-contract FujiSafe(
-  // The asset being borrowed
-  asset borrowAsset,
-  // The amount being borrowed
-  int borrowAmount,
-  // The borrower's public key
-  pubkey borrowerPk,
-  // The treasury's public key
-  pubkey treasuryPk,
-  // The expiration timeout in blocks
-  int expirationTimeout,
-  // The price level for liquidation
-  int priceLevel,
-  // The setup timestamp
-  int setupTimestamp,
-  // The oracle's public key
-  pubkey oraclePk,
-  // The asset pair identifier
-  bytes32 assetPair
-) {
-  // Helper function to verify Fuji token burning
-  function verifyFujiBurning() internal {
-    // Verify output 0 is burning the Fuji token
-    require(tx.output[0].asset == borrowAsset);
-    require(tx.output[0].value == borrowAmount);
-    require(tx.output[0].scriptPubKey.isOpReturn());
-    require(tx.output[0].nonce == 0);
-  }
-
-  // Claim: Treasury can unlock all collateral after expiration when burning Fuji
-  function claim(signature treasurySig) {
-    // Check that expiration timeout has passed
-    require(tx.time >= expirationTimeout, "Expiration timeout not reached");
-    
-    // Verify burning of Fuji token
-    verifyFujiBurning();
-    
-    // Require treasury signature
-    require(checkSig(treasurySig, treasuryPk), "Invalid treasury signature");
-  }
-  
-  // Liquidation: Treasury can unlock all collateral with attestation price below the liquidation target
-  function liquidate(int currentPrice, int timestamp, signature oracleSig, signature treasurySig) {
-    // Check price is below liquidation threshold
-    require(currentPrice < priceLevel, "Price not below liquidation threshold");
-    
-    // Verify timestamp is after setup
-    require(timestamp >= setupTimestamp, "Timestamp before setup");
-    
-    // Verify oracle signature on price data
-    bytes32 message = sha256(timestamp + currentPrice + assetPair);
-    require(checkSigFromStack(oracleSig, oraclePk, message), "Invalid oracle signature");
-    
-    // Verify burning of Fuji token
-    verifyFujiBurning();
-    
-    // Require treasury signature
-    require(checkSig(treasurySig, treasuryPk), "Invalid treasury signature");
-  }
-  
-  // Private Redemption: Only owner can unlock all collateral with key when burning Fuji
-  function redeem(signature borrowerSig) {
-    // Verify burning of Fuji token
-    verifyFujiBurning();
-    
-    // Require borrower signature
-    require(checkSig(borrowerSig, borrowerPk), "Invalid borrower signature");
-  }
-  
-  // Treasury Renew: Treasury can unilaterally renew the expiration time
-  function renew(signature treasurySig) {
-    // Verify that output 0 has the same scriptPubKey, asset, and value as the current input
-    require(tx.input.current.asset == tx.output[0].asset, "Asset mismatch");
-    require(tx.input.current.value == tx.output[0].value, "Value mismatch");
-    require(tx.input.current.scriptPubKey == tx.output[0].scriptPubKey, "ScriptPubKey mismatch");
-    
-    // Require treasury signature
-    require(checkSig(treasurySig, treasuryPk), "Invalid treasury signature");
-  }
+function verifyCondition() internal {
+  // Helper logic
 }
 ```
 
-### Advanced Features in Fuji Safe
+### Expressions
 
-1. **Internal Functions**: The `verifyFujiBurning()` function demonstrates code reuse.
-2. **Error Messages**: Each `require` statement includes a descriptive error message.
-3. **Transaction Introspection**: Access to transaction inputs and outputs.
-4. **Method Chaining**: The `isOpReturn()` method on `scriptPubKey`.
-5. **New Data Types**: `asset` type for Taproot assets.
-6. **Complex Expressions**: Using intermediate variables for clarity.
+TapLang supports various expressions:
 
-## JSON Output Format
+#### Signature Verification
 
-The compiler generates a JSON output with the following structure:
+```solidity
+// Single signature verification
+require(checkSig(userSig, user));
+
+// Multi-signature verification
+require(checkMultisig([user, admin], [userSig, adminSig]));
+
+// Signature verification from stack
+require(checkSigFromStack(oracleSig, oraclePk, message));
+```
+
+#### Hash Verification
+
+```solidity
+// SHA-256 hash verification
+require(sha256(preimage) == hash);
+```
+
+#### Timelock Verification
+
+```solidity
+// Absolute timelock
+require(tx.time >= expirationTime);
+```
+
+#### Transaction Introspection
+
+TapLang provides access to transaction data:
+
+```solidity
+// Access transaction time
+require(tx.time >= lockTime);
+
+// Access outputs
+require(tx.outputs[0].value == amount);
+require(tx.outputs[0].scriptPubKey == script);
+
+// Access inputs
+require(tx.inputs[0].value == amount);
+require(tx.inputs[0].scriptPubKey == script);
+
+// Access the current input (new syntax)
+require(tx.input.current.value == amount);
+require(tx.input.current.scriptPubKey == script);
+```
+
+#### Current Input Access
+
+TapLang provides a special syntax for accessing the current input being spent:
+
+```solidity
+// Access the current input's value
+int currentValue = tx.input.current.value;
+
+// Access the current input's scriptPubKey
+bytes currentScript = tx.input.current.scriptPubKey;
+
+// Access the current input's sequence number
+int sequence = tx.input.current.sequence;
+
+// Access the current input's outpoint
+bytes outpoint = tx.input.current.outpoint;
+```
+
+This is more intuitive than using an index variable:
+
+```solidity
+// Old approach (less intuitive)
+int currentIndex = 0; // Assume the current input is at index 0
+int currentValue = tx.inputs[currentIndex].value;
+
+// New approach (more intuitive)
+int currentValue = tx.input.current.value;
+```
+
+### Variable Declarations
+
+You can declare variables to store intermediate values:
+
+```solidity
+bytes message = sha256(timestamp + currentPrice + assetPair);
+bytes p2trScript = new P2TR(internalKey, assetCommitmentHash);
+```
+
+### Error Messages
+
+You can provide custom error messages for require statements:
+
+```solidity
+require(tx.time >= expirationTimeout, "Expiration timeout not reached");
+```
+
+## Artifact Format
+
+TapLang compiles contracts to a JSON format that can be used with Bitcoin Taproot libraries.
+
+### JSON Structure
 
 ```json
 {
-  "contractName": "HTLC",
+  "contractName": "MyContract",
   "constructorInputs": [
-    { "name": "sender", "type": "pubkey" },
-    { "name": "receiver", "type": "pubkey" },
-    { "name": "hash", "type": "bytes32" },
-    { "name": "refundTime", "type": "int" },
+    { "name": "user", "type": "pubkey" },
     { "name": "server", "type": "pubkey" }
   ],
   "functions": [
     {
-      "name": "claim",
+      "name": "spend",
       "functionInputs": [
-        { "name": "receiverSig", "type": "signature" },
-        { "name": "preimage", "type": "bytes32" }
+        { "name": "userSig", "type": "signature" }
       ],
       "serverVariant": true,
       "require": [
         { "type": "signature" },
-        { "type": "hash" },
         { "type": "serverSignature" }
       ],
       "asm": [
-        "<receiver>",
-        "<receiverSig>",
+        "<user>",
+        "<userSig>",
         "OP_CHECKSIG",
-        "<preimage>",
-        "OP_SHA256",
-        "<hash>",
-        "OP_EQUAL",
         "<SERVER_KEY>",
         "<serverSig>",
         "OP_CHECKSIG"
       ]
     },
     {
-      "name": "claim",
+      "name": "spend",
       "functionInputs": [
-        { "name": "receiverSig", "type": "signature" },
-        { "name": "preimage", "type": "bytes32" }
+        { "name": "userSig", "type": "signature" }
       ],
       "serverVariant": false,
       "require": [
         { "type": "signature" },
-        { "type": "hash" },
         { "type": "older", "message": "Exit timelock of 144 blocks" }
       ],
       "asm": [
-        "<receiver>",
-        "<receiverSig>",
+        "<user>",
+        "<userSig>",
         "OP_CHECKSIG",
-        "<preimage>",
-        "OP_SHA256",
-        "<hash>",
-        "OP_EQUAL",
         "144",
         "OP_CHECKLOCKTIMEVERIFY",
         "OP_DROP"
@@ -281,29 +443,21 @@ The compiler generates a JSON output with the following structure:
     "name": "taplang",
     "version": "0.1.0"
   },
-  "updatedAt": "2025-03-05T23:28:28.331335+00:00"
+  "updatedAt": "2023-03-06T01:27:51.391557+00:00"
 }
 ```
 
-Each function in the contract is compiled into two variants:
+### Key Components
 
-- `serverVariant: true`: Requires a server signature for settlement
-- `serverVariant: false`: Requires an exit timelock for unilateral settlement
+- `contractName`: The name of the contract
+- `constructorInputs`: The parameters required to instantiate the contract
+- `functions`: The spending paths of the contract
+  - Each function has two variants:
+    - `serverVariant: true`: Requires server signature (cooperative path)
+    - `serverVariant: false`: Requires timelock (exit path)
+- `require`: The requirements for each spending path
+- `asm`: The Bitcoin Script assembly code for each spending path
 
-## Library Usage
+## Contributing
 
-You can also use TapLang as a library in your Rust projects:
-
-```rust
-use taplang::compile;
-
-fn main() {
-    let source_code = std::fs::read_to_string("contract.tap").unwrap();
-    let result = compile(&source_code).unwrap();
-    println!("{}", serde_json::to_string_pretty(&result).unwrap());
-}
-```
-
-## License
-
-MIT
+Contributions are welcome! Please feel free to submit a Pull Request.
