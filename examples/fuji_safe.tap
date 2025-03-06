@@ -1,0 +1,66 @@
+// Contract configuration options
+options {
+  // Server key parameter from contract parameters
+  server = treasuryPk;
+  
+  // Exit timelock: 24 hours (144 blocks)
+  exit = 144;
+}
+
+// Simplified Fuji Safe Contract
+contract FujiSafe(
+  // The asset being borrowed
+  asset borrowAsset,
+  // The amount being borrowed
+  int borrowAmount,
+  // The borrower's public key
+  pubkey borrowerPk,
+  // The treasury's public key
+  pubkey treasuryPk,
+  // The expiration timeout in blocks
+  int expirationTimeout,
+  // The price level for liquidation
+  int priceLevel,
+  // The setup timestamp
+  int setupTimestamp,
+  // The oracle's public key
+  pubkey oraclePk,
+  // The asset pair identifier
+  bytes32 assetPair
+) {
+  // Claim: Treasury can unlock all collateral after expiration
+  function claim(signature treasurySig) {
+    // Check that expiration timeout has passed
+    require(tx.time >= expirationTimeout);
+    
+    // Require treasury signature
+    require(checkSig(treasurySig, treasuryPk));
+  }
+  
+  // Liquidation: Treasury can unlock all collateral with attestation price below the liquidation target
+  function liquidate(int currentPrice, int timestamp, signature oracleSig, signature treasurySig) {
+    // Check price is below liquidation threshold
+    require(currentPrice < priceLevel);
+    
+    // Verify timestamp is after setup
+    require(tx.time >= setupTimestamp);
+    
+    // Verify oracle signature on price data
+    require(checkSigFromStack(oracleSig, oraclePk, assetPair));
+    
+    // Require treasury signature
+    require(checkSig(treasurySig, treasuryPk));
+  }
+  
+  // Private Redemption: Only owner can unlock all collateral with key
+  function redeem(signature borrowerSig) {
+    // Require borrower signature
+    require(checkSig(borrowerSig, borrowerPk));
+  }
+  
+  // Treasury Renew: Treasury can unilaterally renew the expiration time
+  function renew(signature treasurySig) {
+    // Require treasury signature
+    require(checkSig(treasurySig, treasuryPk));
+  }
+} 

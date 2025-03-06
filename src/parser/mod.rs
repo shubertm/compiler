@@ -121,6 +121,7 @@ fn parse_function(pair: Pair<Rule>) -> Function {
         name: String::new(),
         parameters: Vec::new(),
         requirements: Vec::new(),
+        is_internal: false,
     };
     
     let mut inner_pairs = pair.into_inner();
@@ -143,26 +144,75 @@ fn parse_function(pair: Pair<Rule>) -> Function {
         }
     }
     
-    // Requirements
-    for req_pair in inner_pairs {
-        if req_pair.as_rule() == Rule::require_stmt {
-            let expr_pair = req_pair.into_inner().next().unwrap();
-            let requirement = parse_expression(expr_pair);
-            func.requirements.push(requirement);
+    // Check for function modifier (internal)
+    let next_pair = inner_pairs.next().unwrap();
+    if next_pair.as_rule() == Rule::function_modifier {
+        func.is_internal = true;
+        // Get the next pair for requirements
+        for req_pair in inner_pairs {
+            parse_function_body(&mut func, req_pair);
+        }
+    } else {
+        // No modifier, this is already a requirement or function call
+        parse_function_body(&mut func, next_pair);
+        
+        // Continue with the rest of the requirements
+        for req_pair in inner_pairs {
+            parse_function_body(&mut func, req_pair);
         }
     }
     
     func
 }
 
-// Parse expression from pest output
-fn parse_expression(pair: Pair<Rule>) -> Requirement {
+// Parse function body (requirements and function calls)
+fn parse_function_body(func: &mut Function, pair: Pair<Rule>) {
+    for p in pair.into_inner() {
+        match p.as_rule() {
+            Rule::require_stmt => {
+                let mut inner = p.into_inner();
+                let expr = inner.next().unwrap();
+                let requirement = parse_complex_expression(expr);
+                
+                // Check if there's an error message
+                if let Some(message) = inner.next() {
+                    // In a more complete implementation, we would store the error message
+                    // For now, we just ignore it
+                }
+                
+                func.requirements.push(requirement);
+            }
+            Rule::function_call_stmt => {
+                // In a more complete implementation, we would handle function calls
+                // For now, we just ignore them
+            }
+            Rule::variable_declaration => {
+                // In a more complete implementation, we would handle variable declarations
+                // For now, we just ignore them
+            }
+            _ => {}
+        }
+    }
+}
+
+// Parse complex expression from pest output
+fn parse_complex_expression(pair: Pair<Rule>) -> Requirement {
     match pair.as_rule() {
         Rule::check_sig => {
             let mut inner = pair.into_inner();
             let signature = inner.next().unwrap().as_str().to_string();
             let pubkey = inner.next().unwrap().as_str().to_string();
             
+            Requirement::CheckSig { signature, pubkey }
+        }
+        Rule::check_sig_from_stack => {
+            let mut inner = pair.into_inner();
+            let signature = inner.next().unwrap().as_str().to_string();
+            let pubkey = inner.next().unwrap().as_str().to_string();
+            let message = inner.next().unwrap().as_str().to_string();
+            
+            // For now, treat this as a regular CheckSig
+            // In a more complete implementation, we would handle this differently
             Requirement::CheckSig { signature, pubkey }
         }
         Rule::check_multisig => {
@@ -183,14 +233,29 @@ fn parse_expression(pair: Pair<Rule>) -> Requirement {
             Requirement::CheckMultisig { signatures, pubkeys }
         }
         Rule::time_comparison => {
-            // Handle tx.time >= timelock
             let mut inner = pair.into_inner();
-            let blocks = inner.next().unwrap().as_str().parse::<u64>().unwrap_or(0);
+            let timelock = inner.next().unwrap().as_str().to_string();
             
-            Requirement::After { blocks }
+            // This is specifically for tx.time >= identifier
+            Requirement::After { 
+                blocks: 0,
+                timelock_var: Some(timelock),
+            }
+        }
+        Rule::identifier_comparison => {
+            let mut inner = pair.into_inner();
+            let left = inner.next().unwrap().as_str().to_string();
+            let op = inner.next().unwrap().as_str().to_string();
+            let right = inner.next().unwrap().as_str().to_string();
+            
+            // Handle all identifier comparisons generically
+            Requirement::Comparison {
+                left: Expression::Variable(left),
+                op,
+                right: Expression::Variable(right),
+            }
         }
         Rule::hash_comparison => {
-            // Handle sha256(preimage) == hash
             let mut inner = pair.into_inner();
             let sha256_func = inner.next().unwrap();
             let hash = inner.next().unwrap().as_str().to_string();
@@ -199,6 +264,70 @@ fn parse_expression(pair: Pair<Rule>) -> Requirement {
             let preimage = sha256_func.into_inner().next().unwrap().as_str().to_string();
             
             Requirement::HashEqual { preimage, hash }
+        }
+        Rule::binary_operation => {
+            let mut inner = pair.into_inner();
+            let left = inner.next().unwrap().as_str().to_string();
+            let op = inner.next().unwrap().as_str().to_string();
+            let right = inner.next().unwrap().as_str().to_string();
+            
+            // Handle property access in binary operations
+            let left_expr = if left.contains(".") {
+                Expression::Property(left)
+            } else {
+                Expression::Variable(left)
+            };
+            
+            let right_expr = if right.contains(".") {
+                Expression::Property(right)
+            } else {
+                Expression::Variable(right)
+            };
+            
+            Requirement::Comparison {
+                left: left_expr,
+                op,
+                right: right_expr,
+            }
+        }
+        Rule::property_access => {
+            // For property access, we'll just use the whole expression as a property
+            let expr = pair.as_str().to_string();
+            
+            Requirement::Comparison {
+                left: Expression::Property(expr),
+                op: "==".to_string(),
+                right: Expression::Literal("true".to_string()),
+            }
+        }
+        Rule::function_call => {
+            // For function calls, we'll just use the whole expression as a variable
+            let expr = pair.as_str().to_string();
+            
+            // Special case for sha256 function
+            if expr.starts_with("sha256(") && expr.ends_with(")") {
+                return Requirement::Comparison {
+                    left: Expression::Sha256(expr[7..expr.len()-1].to_string()),
+                    op: "==".to_string(),
+                    right: Expression::Variable("true".to_string()),
+                };
+            }
+            
+            Requirement::Comparison {
+                left: Expression::Variable(expr),
+                op: "==".to_string(),
+                right: Expression::Variable("true".to_string()),
+            }
+        }
+        Rule::identifier | Rule::number_literal => {
+            // For simple identifiers or literals, use them as variables
+            let expr = pair.as_str().to_string();
+            
+            Requirement::Comparison {
+                left: Expression::Variable(expr),
+                op: "==".to_string(),
+                right: Expression::Variable("true".to_string()),
+            }
         }
         _ => {
             // Default to a comparison for other cases

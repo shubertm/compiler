@@ -1,0 +1,237 @@
+{
+  "contractName": "FujiSafe",
+  "constructorInputs": [
+    {
+      "name": "borrowAsset",
+      "type": "asset"
+    },
+    {
+      "name": "borrowAmount",
+      "type": "int"
+    },
+    {
+      "name": "borrowerPk",
+      "type": "pubkey"
+    },
+    {
+      "name": "treasuryPk",
+      "type": "pubkey"
+    },
+    {
+      "name": "expirationTimeout",
+      "type": "int"
+    },
+    {
+      "name": "priceLevel",
+      "type": "int"
+    },
+    {
+      "name": "setupTimestamp",
+      "type": "int"
+    },
+    {
+      "name": "oraclePk",
+      "type": "pubkey"
+    },
+    {
+      "name": "assetPair",
+      "type": "bytes32"
+    }
+  ],
+  "functions": [
+    {
+      "name": "claim",
+      "functionInputs": [
+        {
+          "name": "treasurySig",
+          "type": "signature"
+        }
+      ],
+      "serverVariant": true,
+      "require": [
+        {
+          "type": "serverSignature"
+        }
+      ],
+      "asm": [
+        "<SERVER_KEY>",
+        "<serverSig>",
+        "OP_CHECKSIG"
+      ]
+    },
+    {
+      "name": "claim",
+      "functionInputs": [
+        {
+          "name": "treasurySig",
+          "type": "signature"
+        }
+      ],
+      "serverVariant": false,
+      "require": [
+        {
+          "type": "older",
+          "message": "Exit timelock of 144 blocks"
+        }
+      ],
+      "asm": [
+        "144",
+        "OP_CHECKLOCKTIMEVERIFY",
+        "OP_DROP"
+      ]
+    },
+    {
+      "name": "liquidate",
+      "functionInputs": [
+        {
+          "name": "currentPrice",
+          "type": "int"
+        },
+        {
+          "name": "timestamp",
+          "type": "int"
+        },
+        {
+          "name": "oracleSig",
+          "type": "signature"
+        },
+        {
+          "name": "treasurySig",
+          "type": "signature"
+        }
+      ],
+      "serverVariant": true,
+      "require": [
+        {
+          "type": "serverSignature"
+        }
+      ],
+      "asm": [
+        "<SERVER_KEY>",
+        "<serverSig>",
+        "OP_CHECKSIG"
+      ]
+    },
+    {
+      "name": "liquidate",
+      "functionInputs": [
+        {
+          "name": "currentPrice",
+          "type": "int"
+        },
+        {
+          "name": "timestamp",
+          "type": "int"
+        },
+        {
+          "name": "oracleSig",
+          "type": "signature"
+        },
+        {
+          "name": "treasurySig",
+          "type": "signature"
+        }
+      ],
+      "serverVariant": false,
+      "require": [
+        {
+          "type": "older",
+          "message": "Exit timelock of 144 blocks"
+        }
+      ],
+      "asm": [
+        "144",
+        "OP_CHECKLOCKTIMEVERIFY",
+        "OP_DROP"
+      ]
+    },
+    {
+      "name": "redeem",
+      "functionInputs": [
+        {
+          "name": "borrowerSig",
+          "type": "signature"
+        }
+      ],
+      "serverVariant": true,
+      "require": [
+        {
+          "type": "serverSignature"
+        }
+      ],
+      "asm": [
+        "<SERVER_KEY>",
+        "<serverSig>",
+        "OP_CHECKSIG"
+      ]
+    },
+    {
+      "name": "redeem",
+      "functionInputs": [
+        {
+          "name": "borrowerSig",
+          "type": "signature"
+        }
+      ],
+      "serverVariant": false,
+      "require": [
+        {
+          "type": "older",
+          "message": "Exit timelock of 144 blocks"
+        }
+      ],
+      "asm": [
+        "144",
+        "OP_CHECKLOCKTIMEVERIFY",
+        "OP_DROP"
+      ]
+    },
+    {
+      "name": "renew",
+      "functionInputs": [
+        {
+          "name": "treasurySig",
+          "type": "signature"
+        }
+      ],
+      "serverVariant": true,
+      "require": [
+        {
+          "type": "serverSignature"
+        }
+      ],
+      "asm": [
+        "<SERVER_KEY>",
+        "<serverSig>",
+        "OP_CHECKSIG"
+      ]
+    },
+    {
+      "name": "renew",
+      "functionInputs": [
+        {
+          "name": "treasurySig",
+          "type": "signature"
+        }
+      ],
+      "serverVariant": false,
+      "require": [
+        {
+          "type": "older",
+          "message": "Exit timelock of 144 blocks"
+        }
+      ],
+      "asm": [
+        "144",
+        "OP_CHECKLOCKTIMEVERIFY",
+        "OP_DROP"
+      ]
+    }
+  ],
+  "source": "// Contract configuration options\noptions {\n  // Server key parameter from contract parameters\n  server = treasuryPk;\n  \n  // Exit timelock: 24 hours (144 blocks)\n  exit = 144;\n}\n\n// Simplified Fuji Safe Contract\ncontract FujiSafe(\n  // The asset being borrowed\n  asset borrowAsset,\n  // The amount being borrowed\n  int borrowAmount,\n  // The borrower's public key\n  pubkey borrowerPk,\n  // The treasury's public key\n  pubkey treasuryPk,\n  // The expiration timeout in blocks\n  int expirationTimeout,\n  // The price level for liquidation\n  int priceLevel,\n  // The setup timestamp\n  int setupTimestamp,\n  // The oracle's public key\n  pubkey oraclePk,\n  // The asset pair identifier\n  bytes32 assetPair\n) {\n  // Claim: Treasury can unlock all collateral after expiration\n  function claim(signature treasurySig) {\n    // Check that expiration timeout has passed\n    require(tx.time >= expirationTimeout);\n    \n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk));\n  }\n  \n  // Liquidation: Treasury can unlock all collateral with attestation price below the liquidation target\n  function liquidate(int currentPrice, int timestamp, signature oracleSig, signature treasurySig) {\n    // Check price is below liquidation threshold\n    require(currentPrice < priceLevel);\n    \n    // Verify timestamp is after setup\n    require(tx.time >= setupTimestamp);\n    \n    // Verify oracle signature on price data\n    require(checkSigFromStack(oracleSig, oraclePk, assetPair));\n    \n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk));\n  }\n  \n  // Private Redemption: Only owner can unlock all collateral with key\n  function redeem(signature borrowerSig) {\n    // Require borrower signature\n    require(checkSig(borrowerSig, borrowerPk));\n  }\n  \n  // Treasury Renew: Treasury can unilaterally renew the expiration time\n  function renew(signature treasurySig) {\n    // Require treasury signature\n    require(checkSig(treasurySig, treasuryPk));\n  }\n} ",
+  "compiler": {
+    "name": "taplang",
+    "version": "0.1.0"
+  },
+  "updatedAt": "2025-03-06T00:17:21.477904+00:00"
+}

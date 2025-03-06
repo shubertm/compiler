@@ -8,6 +8,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let files = vec![
         ("bare.tap", "bare.json"),
         ("htlc.tap", "htlc.json"),
+        ("fuji_safe.tap", "fuji_safe.json"),
     ];
     
     // Compile each file

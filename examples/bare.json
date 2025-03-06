@@ -22,16 +22,10 @@
       "serverVariant": true,
       "require": [
         {
-          "type": "signature"
-        },
-        {
           "type": "serverSignature"
         }
       ],
       "asm": [
-        "<user>",
-        "<userSig>",
-        "OP_CHECKSIG",
         "<SERVER_KEY>",
         "<serverSig>",
         "OP_CHECKSIG"
@@ -48,17 +42,11 @@
       "serverVariant": false,
       "require": [
         {
-          "type": "signature"
-        },
-        {
           "type": "older",
           "message": "Exit timelock of 144 blocks"
         }
       ],
       "asm": [
-        "<user>",
-        "<userSig>",
-        "OP_CHECKSIG",
         "144",
         "OP_CHECKLOCKTIMEVERIFY",
         "OP_DROP"
@@ -70,5 +58,5 @@
     "name": "taplang",
     "version": "0.1.0"
   },
-  "updatedAt": "2025-03-05T23:37:03.877949+00:00"
+  "updatedAt": "2025-03-06T00:17:21.476113+00:00"
 }

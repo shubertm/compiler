@@ -56,7 +56,7 @@ pub fn compile(source_code: &str) -> Result<ContractJson, String> {
         Ok(contract) => contract,
         Err(e) => return Err(format!("Parse error: {}", e)),
     };
-    
+
     // Create the JSON output
     let mut json = ContractJson {
         name: contract.name.clone(),
@@ -117,7 +117,7 @@ fn generate_function(function: &crate::models::Function, contract: &crate::model
     }
     
     // Generate assembly instructions
-    let mut asm = generate_base_asm_instructions(function);
+    let mut asm = generate_base_asm_instructions(&function.requirements);
     
     // Add server signature or exit timelock check
     if server_variant {
@@ -163,7 +163,7 @@ fn generate_requirements(function: &crate::models::Function) -> Vec<RequireState
                     message: None,
                 });
             },
-            Requirement::After { blocks } => {
+            Requirement::After { blocks, timelock_var: _ } => {
                 requirements.push(RequireStatement {
                     req_type: "older".to_string(),
                     message: Some(format!("Timelock of {} blocks", blocks)),
@@ -187,13 +187,12 @@ fn generate_requirements(function: &crate::models::Function) -> Vec<RequireState
     requirements
 }
 
-/// Generate base assembly instructions from function requirements
-fn generate_base_asm_instructions(function: &crate::models::Function) -> Vec<String> {
+/// Generate assembly instructions for a requirement
+fn generate_base_asm_instructions(requirements: &[Requirement]) -> Vec<String> {
     let mut asm = Vec::new();
     
-    // Process each requirement
-    for req in &function.requirements {
-        match req {
+    for requirement in requirements {
+        match requirement {
             Requirement::CheckSig { signature, pubkey } => {
                 asm.push(format!("<{}>", pubkey));
                 asm.push(format!("<{}>", signature));
@@ -218,8 +217,13 @@ fn generate_base_asm_instructions(function: &crate::models::Function) -> Vec<Str
                 
                 asm.push("OP_CHECKMULTISIG".to_string());
             },
-            Requirement::After { blocks } => {
-                asm.push(format!("{}", blocks));
+            Requirement::After { blocks, timelock_var } => {
+                // If we have a variable name, use it, otherwise use the blocks value
+                if let Some(var) = timelock_var {
+                    asm.push(format!("<{}>", var));
+                } else {
+                    asm.push(format!("{}", blocks));
+                }
                 asm.push("OP_CHECKLOCKTIMEVERIFY".to_string());
                 asm.push("OP_DROP".to_string());
             },

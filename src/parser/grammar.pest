@@ -37,32 +37,108 @@ data_type = @{
     "signature" | 
     "bytes32" | 
     "int" | 
-    "bool" 
+    "bool" |
+    "asset"
 }
 
 // Function definition with strict structure
 function = { 
     "function" ~ identifier ~ 
     "(" ~ param_list ~ ")" ~ 
-    "{" ~ require_stmt* ~ "}" 
+    function_modifier? ~
+    "{" ~ (require_stmt | function_call_stmt | variable_declaration)* ~ "}" 
 }
+
+// Function modifier (internal, etc.)
+function_modifier = { "internal" }
 
 // Require statement
 require_stmt = { 
-    "require" ~ "(" ~ expression ~ ")" ~ ";" 
+    "require" ~ "(" ~ complex_expression ~ ("," ~ string_literal)? ~ ")" ~ ";" 
 }
 
-// Expression types - using silent rule to avoid capturing the rule itself
-expression = _{ 
+// Function call statement
+function_call_stmt = {
+    identifier ~ "(" ~ (complex_expression ~ ("," ~ complex_expression)*)? ~ ")" ~ ";"
+}
+
+// Variable declaration
+variable_declaration = {
+    data_type ~ identifier ~ "=" ~ complex_expression ~ ";"
+}
+
+// Complex expression types
+complex_expression = _{ 
+    check_sig_from_stack |
     check_sig | 
     check_multisig | 
-    time_comparison | 
-    hash_comparison 
+    time_comparison |
+    identifier_comparison |
+    hash_comparison |
+    binary_operation |
+    property_access |
+    function_call |
+    identifier |
+    number_literal
+}
+
+// Time comparison (tx.time >= timelock)
+time_comparison = {
+    "tx.time" ~ ">=" ~ identifier
+}
+
+// Identifier comparison (identifier operator identifier)
+identifier_comparison = {
+    identifier ~ binary_operator ~ identifier
+}
+
+// Hash comparison (sha256(preimage) == hash)
+hash_comparison = {
+    sha256_func ~ "==" ~ identifier
+}
+
+// Binary operations between literals or identifiers
+binary_operation = {
+    (number_literal ~ binary_operator ~ (identifier | number_literal)) |
+    (identifier ~ binary_operator ~ (identifier | number_literal)) |
+    (identifier ~ binary_operator ~ identifier)
+}
+
+binary_operator = { "==" | "<" | ">" | ">=" | "<=" | "!=" | "+" | "-" | "*" | "/" }
+
+// Property access (e.g., tx.output[0].asset)
+property_access = {
+    identifier ~ property_part+
+}
+
+// Property part (e.g., .output[0] or .asset)
+property_part = {
+    "." ~ identifier ~ array_access? ~ method_call?
+}
+
+// Array access (e.g., [0])
+array_access = {
+    "[" ~ number_literal ~ "]"
+}
+
+// Method call (e.g., .isOpReturn())
+method_call = {
+    "." ~ identifier ~ "(" ~ ")"
+}
+
+// Function call
+function_call = {
+    identifier ~ "(" ~ (complex_expression ~ ("," ~ complex_expression)*)? ~ ")"
 }
 
 // CheckSig expression
 check_sig = { 
     "checkSig" ~ "(" ~ identifier ~ "," ~ identifier ~ ")" 
+}
+
+// CheckSigFromStack expression
+check_sig_from_stack = {
+    "checkSigFromStack" ~ "(" ~ identifier ~ "," ~ identifier ~ "," ~ identifier ~ ")"
 }
 
 // CheckMultisig expression
@@ -75,19 +151,9 @@ array = {
     "[" ~ identifier ~ ("," ~ identifier)* ~ "]" 
 }
 
-// Time-based comparison (tx.time >= timelock)
-time_comparison = { 
-    "tx.time" ~ ">=" ~ identifier 
-}
-
-// SHA256 comparison (sha256(preimage) == hash)
-hash_comparison = { 
-    sha256_func ~ "==" ~ identifier 
-}
-
 // SHA256 function
 sha256_func = {
-    "sha256" ~ "(" ~ identifier ~ ")"
+    "sha256" ~ "(" ~ complex_expression ~ ")"
 }
 
 // Identifiers must start with a letter and can contain letters, numbers, and underscores

@@ -10,7 +10,7 @@ use serde::{Serialize, Deserialize};
 pub struct Parameter {
     /// Parameter name
     pub name: String,
-    /// Parameter type (pubkey, signature, bytes32, int, bool)
+    /// Parameter type (pubkey, signature, bytes32, int, bool, asset, value)
     #[serde(rename = "type")]
     pub param_type: String,
 }
@@ -126,6 +126,8 @@ pub struct Function {
     pub parameters: Vec<Parameter>,
     /// Function requirements
     pub requirements: Vec<Requirement>,
+    /// Whether this is an internal function
+    pub is_internal: bool,
 }
 
 /// Requirement AST
@@ -136,7 +138,7 @@ pub enum Requirement {
     /// Check multisig requirement
     CheckMultisig { signatures: Vec<String>, pubkeys: Vec<String> },
     /// After requirement
-    After { blocks: u64 },
+    After { blocks: u64, timelock_var: Option<String> },
     /// Hash equal requirement
     HashEqual { preimage: String, hash: String },
     /// Comparison requirement
