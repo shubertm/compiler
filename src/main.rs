@@ -7,10 +7,10 @@ mod models;
 mod parser;
 mod compiler;
 
-/// TapLang Compiler CLI
+/// Arkade Compiler CLI
 ///
-/// This is the command-line interface for the TapLang compiler.
-/// It compiles TapLang source code (.tap files) into JSON output
+/// This is the command-line interface for the Arkade Compiler.
+/// It compiles Arkade Script source code (.ark files) into JSON output
 /// that represents Bitcoin Taproot scripts.
 ///
 /// The JSON output includes:
@@ -26,10 +26,10 @@ mod compiler;
 
 // CLI arguments
 #[derive(ClapParser, Debug)]
-#[command(name = "tapc")]
-#[command(about = "TapLang compiler for Bitcoin Taproot scripts", long_about = None)]
+#[command(name = "arkadec")]
+#[command(about = "Arkade Compiler for Bitcoin Taproot scripts", long_about = None)]
 struct Args {
-    /// Source file path (.tap)
+    /// Source file path (.ark)
     #[arg(required = true)]
     file: String,
 
@@ -38,7 +38,7 @@ struct Args {
     output: Option<String>,
 }
 
-/// Main function for the TapLang compiler CLI
+/// Main function for the Arkade Compiler CLI
 ///
 /// This function:
 /// 1. Parses command-line arguments
@@ -50,10 +50,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse CLI arguments
     let args = Args::parse();
     
-    // Ensure file has .tap extension
+    // Ensure file has .ark extension
     let file_path = Path::new(&args.file);
-    if file_path.extension().unwrap_or_default() != "tap" {
-        return Err("Input file must have .tap extension".into());
+    if file_path.extension().unwrap_or_default() != "ark" {
+        return Err("Input file must have .ark extension".into());
     }
     
     // Read source code

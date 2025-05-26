@@ -1,14 +1,14 @@
 use std::error::Error;
 use std::fs;
 use std::path::Path;
-use taplang::compile;
+use arkade_compiler::compile;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // Define the tap files to compile
+    // Define the Arkade Script files to compile
     let files = vec![
-        ("bare.tap", "bare.json"),
-        ("htlc.tap", "htlc.json"),
-        ("fuji_safe.tap", "fuji_safe.json"),
+        ("bare.ark", "bare.json"),
+        ("htlc.ark", "htlc.json"),
+        ("fuji_safe.ark", "fuji_safe.json"),
     ];
     
     // Compile each file
