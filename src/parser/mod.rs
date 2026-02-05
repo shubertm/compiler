@@ -10,12 +10,12 @@ pub struct ArkadeParser;
 
 pub fn parse(source_code: &str) -> Result<Contract, Box<dyn std::error::Error>> {
     let pairs = ArkadeParser::parse(Rule::main, source_code)?;
-    let ast = build_ast(pairs);
+    let ast = build_ast(pairs)?;
     Ok(ast)
 }
 
 // Parse pest output into AST
-fn build_ast(pairs: Pairs<Rule>) -> Contract {
+fn build_ast(pairs: Pairs<Rule>) -> Result<Contract, String> {
     let mut contract = Contract {
         name: String::new(),
         parameters: Vec::new(),
@@ -32,20 +32,20 @@ fn build_ast(pairs: Pairs<Rule>) -> Contract {
                 // Find the contract inside main
                 for inner_pair in pair.into_inner() {
                     if inner_pair.as_rule() == Rule::contract {
-                        parse_contract(&mut contract, inner_pair);
+                        parse_contract(&mut contract, inner_pair)?;
                     }
                 }
             }
             // Direct contract rule (for backward compatibility)
             Rule::contract => {
-                parse_contract(&mut contract, pair);
+                parse_contract(&mut contract, pair)?;
             }
             // Skip other rules
             _ => {}
         }
     }
     
-    contract
+    Ok(contract)
 }
 
 // Helper function to parse contract details
@@ -173,15 +173,15 @@ fn parse_function(pair: Pair<Rule>) -> Result<Function, String> {
                 func.is_internal = true;
                 // Get the next pair for requirements
                 for req_pair in inner_pairs {
-                    parse_function_body(&mut func, req_pair);
+                    parse_function_body(&mut func, req_pair)?;
                 }
             } else {
                 // No modifier, this is already a requirement or function call
-                parse_function_body(&mut func, next_pair);
+                parse_function_body(&mut func, next_pair)?;
 
                 // Continue with the rest of the requirements
                 for req_pair in inner_pairs {
-                    parse_function_body(&mut func, req_pair);
+                    parse_function_body(&mut func, req_pair)?;
                 }
             }
 
@@ -203,7 +203,7 @@ fn parse_function_body(func: &mut Function, pair: Pair<Rule>) -> Result<(), Stri
             let expr = match inner.next() {
                 Some(expr) => expr,
                 None => {
-                    // Cannot continue compilation if require input expression is malformed
+                    // Cannot continue compilation if `require` input expression is malformed
                     return Err(format!("Invalid arguments to function {}", func.name));
                 }
             };
@@ -298,7 +298,7 @@ fn parse_complex_expression(pair: Pair<Rule>) -> Result<Requirement, String> {
             let left = match left_expr.as_rule() {
                 Rule::tx_property_access | Rule::this_property_access => 
                     Expression::Property(left_expr.as_str().to_string()),
-                _ => panic!("Unexpected left expression in property comparison")
+                _ => return Err("Unexpected left expression in property comparison".to_string())
             };
             
             let right = match right_expr.as_rule() {
@@ -308,7 +308,7 @@ fn parse_complex_expression(pair: Pair<Rule>) -> Result<Requirement, String> {
                     Expression::Property(right_expr.as_str().to_string()),
                 Rule::p2tr_constructor =>
                     Expression::Property(right_expr.as_str().to_string()),
-                _ => panic!("Unexpected right expression in property comparison")
+                _ => return Err("Unexpected right expression in property comparison".to_string())
             };
             
             Ok(Requirement::Comparison {
@@ -335,13 +335,13 @@ fn parse_complex_expression(pair: Pair<Rule>) -> Result<Requirement, String> {
             let left = match left_expr.as_rule() {
                 Rule::identifier => Expression::Variable(left_expr.as_str().to_string()),
                 Rule::number_literal => Expression::Literal(left_expr.as_str().to_string()),
-                _ => panic!("Unexpected left expression in binary operation")
+                _ => return Err("Unexpected left expression in binary operation".to_string())
             };
             
             let right = match right_expr.as_rule() {
                 Rule::identifier => Expression::Variable(right_expr.as_str().to_string()),
                 Rule::number_literal => Expression::Literal(right_expr.as_str().to_string()),
-                _ => panic!("Unexpected right expression in binary operation")
+                _ => return Err("Unexpected right expression in binary operation".to_string())
             };
             
             Ok(Requirement::Comparison { left, op, right })
@@ -424,7 +424,7 @@ fn parse_complex_expression(pair: Pair<Rule>) -> Result<Requirement, String> {
                 right: Expression::Literal("true".to_string())
             })
         }
-        _ => panic!("Unexpected rule in complex expression: {:?}", pair.as_rule())
+        _ => Err(format!("Unexpected rule in complex expression: {:?}", pair.as_rule()))
     }
 }
 
