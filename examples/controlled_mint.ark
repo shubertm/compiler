@@ -1,0 +1,50 @@
+// Controlled Mint Contract
+// Demonstrates asset group introspection primitives
+//
+// This contract manages a token minting authority where:
+// 1. mint() - Authority can mint new tokens (delta > 0), control asset required
+// 2. burn() - Anyone can burn tokens (delta < 0), no control needed
+// 3. lockSupply() - Authority burns the control asset to lock supply forever
+//
+// Asset groups provide aggregate views of asset flows across all inputs/outputs,
+// enabling balance verification without iterating individual UTXOs.
+
+options {
+  server = serverPk;
+  exit = 288;
+}
+
+contract ControlledMint(
+  bytes32 tokenAssetId,
+  bytes32 ctrlAssetId,
+  pubkey issuerPk,
+  pubkey serverPk
+) {
+  // Mint: delta > 0, control asset present and retained
+  function mint(int amount, pubkey recipientPk, signature issuerSig) {
+    let tokenGroup = tx.assetGroups.find(tokenAssetId);
+    require(tokenGroup.delta == amount, "delta mismatch");
+    require(tokenGroup.control == ctrlAssetId, "wrong control");
+
+    let ctrlGroup = tx.assetGroups.find(ctrlAssetId);
+    require(ctrlGroup.delta == 0, "ctrl supply changed");
+
+    require(tx.outputs[0].assets.lookup(tokenAssetId) >= amount, "mint short");
+    require(tx.outputs[0].scriptPubKey == new P2TR(recipientPk), "wrong dest");
+    require(checkSig(issuerSig, issuerPk), "bad sig");
+  }
+
+  // Burn: delta < 0, no control asset needed
+  function burn(int amount, signature ownerSig, pubkey ownerPk) {
+    let tokenGroup = tx.assetGroups.find(tokenAssetId);
+    require(tokenGroup.sumInputs >= tokenGroup.sumOutputs + amount, "burn short");
+    require(checkSig(ownerSig, ownerPk), "bad sig");
+  }
+
+  // Lock supply forever: burn the control asset
+  function lockSupply(signature issuerSig) {
+    let ctrlGroup = tx.assetGroups.find(ctrlAssetId);
+    require(ctrlGroup.sumOutputs == 0, "ctrl not burned");
+    require(checkSig(issuerSig, issuerPk), "bad sig");
+  }
+}
