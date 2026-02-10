@@ -1,6 +1,6 @@
 // Contract configuration options
 options {
-  // Server key parameter from contract parameters
+  // Server key 
   server = server;
   
   // Renewal timelock: 7 days (1008 blocks)
@@ -16,8 +16,7 @@ contract HTLC(
   pubkey sender,
   pubkey receiver,
   bytes hash,
-  int refundTime,
-  pubkey server
+  int refundTime
 ) {
   // Cooperative close path
   function together(signature senderSig, signature receiverSig) {

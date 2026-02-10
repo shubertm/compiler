@@ -485,6 +485,12 @@ fn requirement_to_statement(req: &Requirement) -> RequireStatement {
                 message: None,
             }
         },
+        Requirement::CheckSigFromStack { .. } => {
+            RequireStatement {
+                req_type: "signatureFromStack".to_string(),
+                message: None,
+            }
+        },
         Requirement::CheckMultisig { .. } => {
             RequireStatement {
                 req_type: "multisig".to_string(),
@@ -608,6 +614,12 @@ fn generate_requirement_asm(req: &Requirement, asm: &mut Vec<String>) {
             asm.push(format!("<{}>", signature));
             asm.push("OP_CHECKSIG".to_string());
         },
+        Requirement::CheckSigFromStack { signature, pubkey, message } => {
+            asm.push(format!("<{}>", message));
+            asm.push(format!("<{}>", pubkey));
+            asm.push(format!("<{}>", signature));
+            asm.push("OP_CHECKSIGFROMSTACK".to_string());
+        },
         Requirement::CheckMultisig { signatures, pubkeys } => {
             asm.push(format!("OP_{}", pubkeys.len()));
             for pubkey in pubkeys {
@@ -653,22 +665,61 @@ fn generate_expression_asm(expr: &Expression, asm: &mut Vec<String>) {
             asm.push(format!("<{}>", prop));
         },
         Expression::BinaryOp { left, op, right } => {
+            // Emit left operand
             generate_expression_asm(left, asm);
+
+            // Convert to u64le if needed (witness inputs arrive as CScriptNum)
+            if needs_u64_conversion(left) {
+                asm.push("OP_SCRIPTNUMTOLE64".to_string());
+            }
+
+            // Emit right operand
             generate_expression_asm(right, asm);
+
+            // Convert to u64le if needed
+            if needs_u64_conversion(right) {
+                asm.push("OP_SCRIPTNUMTOLE64".to_string());
+            }
+
+            // Emit opcode with OP_VERIFY for 64-bit ops (same as emit_binary_op_asm)
             match op.as_str() {
-                "+" => asm.push("OP_ADD64".to_string()),
-                "-" => asm.push("OP_SUB64".to_string()),
-                "*" => asm.push("OP_MUL64".to_string()),
-                "/" => asm.push("OP_DIV64".to_string()),
-                ">=" => asm.push("OP_GREATERTHANOREQUAL64".to_string()),
-                "<=" => asm.push("OP_LESSTHANOREQUAL64".to_string()),
-                ">" => asm.push("OP_GREATERTHAN64".to_string()),
-                "<" => asm.push("OP_LESSTHAN64".to_string()),
+                "+" => {
+                    asm.push("OP_ADD64".to_string());
+                    asm.push("OP_VERIFY".to_string());
+                }
+                "-" => {
+                    asm.push("OP_SUB64".to_string());
+                    asm.push("OP_VERIFY".to_string());
+                }
+                "*" => {
+                    asm.push("OP_MUL64".to_string());
+                    asm.push("OP_VERIFY".to_string());
+                }
+                "/" => {
+                    asm.push("OP_DIV64".to_string());
+                    asm.push("OP_VERIFY".to_string());
+                }
+                ">=" => {
+                    asm.push("OP_GREATERTHANOREQUAL64".to_string());
+                    asm.push("OP_VERIFY".to_string());
+                }
+                "<=" => {
+                    asm.push("OP_LESSTHANOREQUAL64".to_string());
+                    asm.push("OP_VERIFY".to_string());
+                }
+                ">" => {
+                    asm.push("OP_GREATERTHAN64".to_string());
+                    asm.push("OP_VERIFY".to_string());
+                }
+                "<" => {
+                    asm.push("OP_LESSTHAN64".to_string());
+                    asm.push("OP_VERIFY".to_string());
+                }
                 "==" => asm.push("OP_EQUAL".to_string()),
                 "!=" => {
                     asm.push("OP_EQUAL".to_string());
                     asm.push("OP_NOT".to_string());
-                },
+                }
                 _ => asm.push("OP_FALSE".to_string()),
             }
         },
@@ -912,6 +963,12 @@ fn generate_base_asm_instructions(requirements: &[Requirement]) -> Vec<String> {
                 asm.push(format!("<{}>", pubkey));
                 asm.push(format!("<{}>", signature));
                 asm.push("OP_CHECKSIG".to_string());
+            }
+            Requirement::CheckSigFromStack { signature, pubkey, message } => {
+                asm.push(format!("<{}>", message));
+                asm.push(format!("<{}>", pubkey));
+                asm.push(format!("<{}>", signature));
+                asm.push("OP_CHECKSIGFROMSTACK".to_string());
             }
             Requirement::CheckMultisig {
                 signatures,
@@ -1565,6 +1622,21 @@ fn substitute_requirement(req: &Requirement, index_var: &str, value_var: &str, k
             };
             let new_pk = pubkey.clone();
             Requirement::CheckSig { signature: new_sig, pubkey: new_pk }
+        }
+        Requirement::CheckSigFromStack { signature, pubkey, message } => {
+            // Substitute signature, pubkey, and message if they match loop variables
+            let new_sig = if signature == value_var {
+                if let Some(arr) = array_name {
+                    format!("{}_{}", arr, k)
+                } else {
+                    signature.clone()
+                }
+            } else {
+                signature.clone()
+            };
+            let new_pk = pubkey.clone();
+            let new_msg = message.clone();
+            Requirement::CheckSigFromStack { signature: new_sig, pubkey: new_pk, message: new_msg }
         }
         // Other requirement types don't need substitution
         _ => req.clone(),
