@@ -603,7 +603,7 @@ fn parse_check_multisig(pair: Pair<Rule>) -> Result<Requirement, String> {
     let mut inner = pair.into_inner();
     let pubkeys_array = inner.next().ok_or("Missing public keys")?;
     // We do not worry about missing signatures because we have threshold multisig
-    let signatures_array = inner.next().ok_or("Missing signatures")?;
+    let signatures_array = inner.next();
     let threshold_value = inner.next();
 
     let pubkeys: Vec<String> = pubkeys_array
@@ -611,10 +611,15 @@ fn parse_check_multisig(pair: Pair<Rule>) -> Result<Requirement, String> {
         .map(|p| p.as_str().to_string())
         .collect();
 
-    let signatures = signatures_array
-        .into_inner()
-        .map(|s| s.as_str().to_string())
-        .collect();
+    let signatures = if let Some(signatures_array) = signatures_array {
+        signatures_array.into_inner()
+            .map(|s| s.as_str().to_string())
+            .collect()
+    } else {
+        // Allows signatures to be optional for threshold checkMultisig
+        Vec::new()
+    };
+
     let threshold = if let Some(threshold_value) = threshold_value {
         match u8::from_str(threshold_value.as_str()) {
             Ok(threshold) => threshold,
