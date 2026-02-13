@@ -642,6 +642,9 @@ fn parse_check_multisig(pair: Pair<Rule>) -> Result<Requirement, String> {
                         }
                     };
 
+                    if threshold < 1 {
+                        return Err(format!("m-of-n multisig cannot succeed with threshold(m) of {}", threshold));
+                    }
                     if threshold > pubkeys_size {
                         return Err("m-of-n multisig threshold(m) exceeds acceptable number of signers(n)".to_string());
                     }

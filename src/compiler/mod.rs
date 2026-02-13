@@ -674,7 +674,7 @@ fn generate_requirement_asm(req: &Requirement, asm: &mut Vec<String>) -> Result<
                     asm.push("OP_CHECKMULTISIG".to_string());
                     Ok(())
                 } else {
-                    Err("Public keys have exceeded the maximum number allowed".to_string())
+                    Err("Public keys or signatures have exceeded 20, the maximum number allowed".to_string())
                 }
             }
         },
