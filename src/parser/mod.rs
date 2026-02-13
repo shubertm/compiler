@@ -636,6 +636,10 @@ fn parse_check_multisig(pair: Pair<Rule>) -> Result<Requirement, String> {
                         }
                     };
 
+                    if threshold > pubkeys.len() as u8 {
+                        return Err("m-of-n multisig threshold(m) exceeds acceptable number of signers(n)".to_string());
+                    }
+
                     Ok(Requirement::CheckMultisig {
                         signatures: Vec::new(),
                         pubkeys,
