@@ -640,25 +640,32 @@ fn generate_requirement_asm(req: &Requirement, asm: &mut Vec<String>) {
                 }
                 asm.push("OP_NUMEQUAL".to_string());
             } else {
-                let number_of_pubkeys = pubkeys.len() as u8;
-                if number_of_pubkeys <= 16u8 {
-                    asm.push(format!("OP_{}", number_of_pubkeys));
-                } else {
-                    asm.push(format!("{}", number_of_pubkeys));
+                let number_of_pubkeys = pubkeys.len();
+                let number_of_sigs = signatures.len();
+
+                if number_of_pubkeys <= 20 && number_of_sigs <= 20 {
+                    let number_of_pubkeys = number_of_pubkeys as u8;
+                    let number_of_sigs = number_of_sigs as u8;
+
+                    if number_of_pubkeys <= 16u8 {
+                        asm.push(format!("OP_{}", number_of_pubkeys));
+                    } else {
+                        asm.push(format!("{}", number_of_pubkeys));
+                    }
+                    for pubkey in pubkeys {
+                        asm.push(format!("<{}>", pubkey));
+                    }
+
+                    if number_of_sigs <= 16u8 {
+                        asm.push(format!("OP_{}", number_of_sigs));
+                    } else {
+                        asm.push(format!("{}", number_of_sigs));
+                    }
+                    for signature in signatures {
+                        asm.push(format!("<{}>", signature));
+                    }
+                    asm.push("OP_CHECKMULTISIG".to_string());
                 }
-                for pubkey in pubkeys {
-                    asm.push(format!("<{}>", pubkey));
-                }
-                let number_of_sigs = signatures.len() as u8;
-                if number_of_sigs <= 16u8 {
-                    asm.push(format!("OP_{}", number_of_sigs));
-                } else {
-                    asm.push(format!("{}", number_of_sigs));
-                }
-                for signature in signatures {
-                    asm.push(format!("<{}>", signature));
-                }
-                asm.push("OP_CHECKMULTISIG".to_string());
             }
         },
         Requirement::After { blocks, timelock_var } => {

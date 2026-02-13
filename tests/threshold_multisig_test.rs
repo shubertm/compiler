@@ -3,14 +3,12 @@ use std::fs;
 use tempfile::tempdir;
 use serde_json::Value;
 
-#[test]
-fn test_threshold_multisig() {
-    // Threshold multisig example source code
-    let threshold_multisig_code = r#"// Contract configuration options
+// Threshold multisig example source code
+const THRESHOLD_MULTISIG_CODE: &str = r#"// Contract configuration options
 options {
   // Server key parameter from contract parameters
   server = server;
-  
+
   // Exit timelock: 24 hours (144 blocks)
   exit = 144;
 }
@@ -24,23 +22,25 @@ contract ThresholdMultisig(
   pubkey server
 ) {
   // n-of-n using no literal threshold
-  function twoOfTwo() {
+  function twoOfTwo(signature signerSig, signature signer1Sig) {
     require(checkMultisig([signer, signer1]));
   }
 
   // n-of-n using literal threshold
-  function fiveOfFive() {
+  function fiveOfFive(signature signerSig, signature signer1Sig, signature signer2Sig, signature signer3Sig, signature signer4Sig) {
     require(checkMultisig([signer, signer1, signer2, signer3, signer4], 5));
   }
 
   // m-of-n using literal threshold
-  function threeOfFive() {
+  function threeOfFive(signature signerSig, signature signer1Sig, signature signer2Sig, signature signer3Sig, signature signer4Sig) {
     require(checkMultisig([signer, signer1, signer2, signer3, signer4], 3));
   }
 }"#;
 
+#[test]
+fn test_threshold_multisig() {
     // Compile the contract
-    let result = compile(threshold_multisig_code);
+    let result = compile(THRESHOLD_MULTISIG_CODE);
     assert!(result.is_ok(), "Compilation failed: {:?}", result.err());
     
     let output = result.unwrap();
@@ -66,13 +66,16 @@ contract ThresholdMultisig(
     // Verify functions - now we have 6 functions (3 functions x 2 variants)
     assert_eq!(output.functions.len(), 6);
     
-    // Verify together function with server variant
+    // Verify twoOfTwo function with server variant
     let two_of_two_function = output.functions.iter()
         .find(|f| f.name == "twoOfTwo" && f.server_variant)
         .unwrap();
     
     // Check function inputs
-    assert_eq!(two_of_two_function.function_inputs.len(), 0);
+    assert_eq!(two_of_two_function.function_inputs.len(), 2);
+
+    // Check require types
+    assert_eq!(two_of_two_function.require[0].req_type,"multisig");
 
     // Check assembly instructions
     assert_eq!(two_of_two_function.asm.len(), 9);
@@ -86,11 +89,17 @@ contract ThresholdMultisig(
     assert_eq!(two_of_two_function.asm[7], "<serverSig>");
     assert_eq!(two_of_two_function.asm[8], "OP_CHECKSIG");
     
-    // Verify refund function with server variant
+    // Verify fiveOfFive function with server variant
     let five_of_five_function = output.functions.iter()
         .find(|f| f.name == "fiveOfFive" && f.server_variant)
         .unwrap();
-    
+
+    // Check function inputs
+    assert_eq!(five_of_five_function.function_inputs.len(), 5);
+
+    // Check require types
+    assert_eq!(five_of_five_function.require[0].req_type,"multisig");
+
     // Check assembly instructions
     assert_eq!(five_of_five_function.asm.len(), 15);
     assert_eq!(five_of_five_function.asm[0], "<signer>");
@@ -109,11 +118,17 @@ contract ThresholdMultisig(
     assert_eq!(five_of_five_function.asm[13], "<serverSig>");
     assert_eq!(five_of_five_function.asm[14], "OP_CHECKSIG");
     
-    // Verify claim function with server variant
+    // Verify threeOfFive function with server variant
     let three_of_five_function = output.functions.iter()
         .find(|f| f.name == "threeOfFive" && f.server_variant)
         .unwrap();
-    
+
+    // Check function inputs
+    assert_eq!(three_of_five_function.function_inputs.len(), 5);
+
+    // Check require types
+    assert_eq!(three_of_five_function.require[0].req_type,"multisig");
+
     // Check assembly instructions
     assert_eq!(three_of_five_function.asm.len(), 15);
     assert_eq!(three_of_five_function.asm[0], "<signer>");
@@ -132,13 +147,19 @@ contract ThresholdMultisig(
     assert_eq!(three_of_five_function.asm[13], "<serverSig>");
     assert_eq!(three_of_five_function.asm[14], "OP_CHECKSIG");
 
-    // Verify together function with server variant
+    // Verify twoOfTwo function with exit path
     let two_of_two_function = output.functions.iter()
         .find(|f| f.name == "twoOfTwo" && !f.server_variant)
         .unwrap();
 
     // Check function inputs
-    assert_eq!(two_of_two_function.function_inputs.len(), 0);
+    assert_eq!(two_of_two_function.function_inputs.len(), 2);
+
+    // Check require types
+    assert_eq!(two_of_two_function.require[0].req_type,"multisig");
+
+    // Check function inputs
+    assert_eq!(two_of_two_function.function_inputs.len(), 2);
 
     // Check assembly instructions
     assert_eq!(two_of_two_function.asm.len(), 9);
@@ -152,10 +173,16 @@ contract ThresholdMultisig(
     assert_eq!(two_of_two_function.asm[7], "OP_CHECKSEQUENCEVERIFY");
     assert_eq!(two_of_two_function.asm[8], "OP_DROP");
 
-    // Verify refund function with server variant
+    // Verify fiveOfFive function with exit path
     let five_of_five_function = output.functions.iter()
         .find(|f| f.name == "fiveOfFive" && !f.server_variant)
         .unwrap();
+
+    // Check function inputs
+    assert_eq!(five_of_five_function.function_inputs.len(), 5);
+
+    // Check require types
+    assert_eq!(five_of_five_function.require[0].req_type,"multisig");
 
     // Check assembly instructions
     assert_eq!(five_of_five_function.asm.len(), 15);
@@ -175,10 +202,16 @@ contract ThresholdMultisig(
     assert_eq!(five_of_five_function.asm[13], "OP_CHECKSEQUENCEVERIFY");
     assert_eq!(five_of_five_function.asm[14], "OP_DROP");
 
-    // Verify claim function with server variant
+    // Verify threeOfFive function with exit path
     let three_of_five_function = output.functions.iter()
         .find(|f| f.name == "threeOfFive" && !f.server_variant)
         .unwrap();
+
+    // Check function inputs
+    assert_eq!(three_of_five_function.function_inputs.len(), 5);
+
+    // Check require types
+    assert_eq!(three_of_five_function.require[0].req_type,"multisig");
 
     // Check assembly instructions
     assert_eq!(three_of_five_function.asm.len(), 15);
@@ -219,7 +252,7 @@ contract ThresholdMultisig(
 ) {
   // m-of-n using literal threshold greater than number of pubkeys
   // Should fail to compile
-  function fourOfThree() {
+  function fourOfThree(signature signerSig, signature signer1Sig, signature signer2Sig) {
     require(checkMultisig([signer, signer1, signer2], 4));
   }
 }"#;
@@ -235,45 +268,11 @@ fn test_threshold_multisig_cli() {
     let input_path = temp_dir.path().join("threshold_multisig.ark");
     let output_path = temp_dir.path().join("threshold_multisig.json");
 
-    // Threshold multisig example source code
-    let threshold_multisig_code = r#"// Contract configuration options
-options {
-  // Server key parameter from contract parameters
-  server = server;
-
-  // Exit timelock: 24 hours (144 blocks)
-  exit = 144;
-}
-
-contract ThresholdMultisig(
-  pubkey signer,
-  pubkey signer1,
-  pubkey signer2,
-  pubkey signer3,
-  pubkey signer4,
-  pubkey server
-) {
-  // n-of-n using no literal threshold
-  function twoOfTwo() {
-    require(checkMultisig([signer, signer1]));
-  }
-
-  // n-of-n using literal threshold
-  function fiveOfFive() {
-    require(checkMultisig([signer, signer1, signer2, signer3, signer4], 5));
-  }
-
-  // m-of-n using literal threshold
-  function threeOfFive() {
-    require(checkMultisig([signer, signer1, signer2, signer3, signer4], 3));
-  }
-}"#;
-
     // Write the contract to a file
-    fs::write(&input_path, threshold_multisig_code).unwrap();
+    fs::write(&input_path, THRESHOLD_MULTISIG_CODE).unwrap();
     
     // Compile the contract using the library
-    let result = compile(threshold_multisig_code);
+    let result = compile(THRESHOLD_MULTISIG_CODE);
     assert!(result.is_ok());
     
     // Run the CLI command
