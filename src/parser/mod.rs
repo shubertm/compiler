@@ -611,8 +611,9 @@ fn parse_check_multisig(pair: Pair<Rule>) -> Result<Requirement, String> {
         .into_inner()
         .map(|p| p.as_str().to_string())
         .collect();
-
-    let mut threshold = 0u8;
+    let pubkeys_size = pubkeys.len() as u16;
+    
+    let mut threshold = 0u16;
 
     match next {
         Some(next_pair) => {
@@ -629,14 +630,14 @@ fn parse_check_multisig(pair: Pair<Rule>) -> Result<Requirement, String> {
                 }
                 _ => {
                     // m-of-n threshold multisig
-                    let threshold = match u8::from_str(next_pair.as_str()) {
+                    let threshold = match u16::from_str(next_pair.as_str()) {
                         Ok(threshold) => threshold,
                         Err(e) => {
                             return Err(format!("{}", e));
                         }
                     };
 
-                    if threshold > pubkeys.len() as u8 {
+                    if threshold > pubkeys_size {
                         return Err("m-of-n multisig threshold(m) exceeds acceptable number of signers(n)".to_string());
                     }
 
@@ -650,7 +651,7 @@ fn parse_check_multisig(pair: Pair<Rule>) -> Result<Requirement, String> {
         }
         None => {
             // An n-of-n multisig should be created by optionally omitting the threshold from checkMultisig arguments
-            threshold = pubkeys.len() as u8;
+            threshold = pubkeys_size;
             Ok(Requirement::CheckMultisig {
                 signatures: Vec::new(),
                 pubkeys,
