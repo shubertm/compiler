@@ -3,7 +3,7 @@
 # Check if any staged Rust files need formatting
 if ! cargo fmt --check ; then
 cargo fmt
-git add .
+git update-index --again
 echo "Formatted Rust code successfully! Commit again."
 exit 1
 fi
