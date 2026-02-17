@@ -51,7 +51,6 @@ pub const OP_SHA256FINALIZE: &str = "OP_SHA256FINALIZE";
 pub const OP_DROP: &str = "OP_DROP";
 pub const OP_DUP: &str = "OP_DUP";
 pub const OP_NIP: &str = "OP_NIP";
-pub const OP_NEG64: &str = "OP_NEG64";
 
 // Type conversions
 pub const OP_LE64TOSCRIPTNUM: &str = "OP_LE64TOSCRIPTNUM";
@@ -77,10 +76,12 @@ pub const OP_ADD64: &str = "OP_ADD64";
 pub const OP_SUB64: &str = "OP_SUB64";
 pub const OP_MUL64: &str = "OP_MUL64";
 pub const OP_DIV64: &str = "OP_DIV64";
-pub const OP_TXWEIGHT: &str = "OP_TXWEIGHT";
+pub const OP_NEG64: &str = "OP_NEG64";
+
 
 // Introspection
 pub const OP_TXHASH: &str = "OP_TXHASH";
+pub const OP_TXWEIGHT: &str = "OP_TXWEIGHT";
 pub const OP_INSPECTASSETGROUP: &str = "OP_INSPECTASSETGROUP";
 pub const OP_INSPECTASSETGROUPNUM: &str = "OP_INSPECTASSETGROUPNUM";
 pub const OP_INSPECTASSETGROUPSUM: &str = "OP_INSPECTASSETGROUPSUM";
