@@ -111,7 +111,8 @@ options {
 }
 
 contract BareVTXO(
-  pubkey user
+  pubkey user,
+  pubkey server
 ) {
   // Single signature spend path
   // This will automatically be compiled into:
@@ -138,6 +139,7 @@ options {
 contract HTLC(
   pubkey sender,
   pubkey receiver,
+  pubkey server,
   bytes hash,
   int refundTime
 ) {
@@ -302,7 +304,8 @@ options {
 
 // Contract declaration with parameters
 contract MyContract(
-  pubkey user
+  pubkey user,
+  pubkey treasuryPk
 ) {
   // Function declarations (spending paths)
   function spend(signature userSig) {
