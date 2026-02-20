@@ -1,7 +1,7 @@
 use arkade_compiler::compile;
+use serde_json::Value;
 use std::fs;
 use tempfile::tempdir;
-use serde_json::Value;
 
 // Threshold multisig example source code
 const THRESHOLD_MULTISIG_CODE: &str = r#"// Contract configuration options
@@ -42,12 +42,12 @@ fn test_threshold_multisig() {
     // Compile the contract
     let result = compile(THRESHOLD_MULTISIG_CODE);
     assert!(result.is_ok(), "Compilation failed: {:?}", result.err());
-    
+
     let output = result.unwrap();
-    
+
     // Verify contract name
     assert_eq!(output.name, "ThresholdMultisig");
-    
+
     // Verify parameters
     assert_eq!(output.parameters.len(), 6);
     assert_eq!(output.parameters[0].name, "signer");
@@ -62,20 +62,22 @@ fn test_threshold_multisig() {
     assert_eq!(output.parameters[4].param_type, "pubkey");
     assert_eq!(output.parameters[5].name, "server");
     assert_eq!(output.parameters[5].param_type, "pubkey");
-    
+
     // Verify functions - now we have 6 functions (3 functions x 2 variants)
     assert_eq!(output.functions.len(), 6);
-    
+
     // Verify twoOfTwo function with server variant
-    let two_of_two_function = output.functions.iter()
+    let two_of_two_function = output
+        .functions
+        .iter()
         .find(|f| f.name == "twoOfTwo" && f.server_variant)
         .unwrap();
-    
+
     // Check function inputs
     assert_eq!(two_of_two_function.function_inputs.len(), 2);
 
     // Check require types
-    assert_eq!(two_of_two_function.require[0].req_type,"multisig");
+    assert_eq!(two_of_two_function.require[0].req_type, "multisig");
 
     // Check assembly instructions
     assert_eq!(two_of_two_function.asm.len(), 9);
@@ -88,9 +90,11 @@ fn test_threshold_multisig() {
     assert_eq!(two_of_two_function.asm[6], "<SERVER_KEY>");
     assert_eq!(two_of_two_function.asm[7], "<serverSig>");
     assert_eq!(two_of_two_function.asm[8], "OP_CHECKSIG");
-    
+
     // Verify fiveOfFive function with server variant
-    let five_of_five_function = output.functions.iter()
+    let five_of_five_function = output
+        .functions
+        .iter()
         .find(|f| f.name == "fiveOfFive" && f.server_variant)
         .unwrap();
 
@@ -98,28 +102,30 @@ fn test_threshold_multisig() {
     assert_eq!(five_of_five_function.function_inputs.len(), 5);
 
     // Check require types
-    assert_eq!(five_of_five_function.require[0].req_type,"multisig");
+    assert_eq!(five_of_five_function.require[0].req_type, "multisig");
 
     // Check assembly instructions
     assert_eq!(five_of_five_function.asm.len(), 15);
     assert_eq!(five_of_five_function.asm[0], "<signer>");
     assert_eq!(five_of_five_function.asm[1], "OP_CHECKSIG");
     assert_eq!(five_of_five_function.asm[2], "<signer1>");
-    assert_eq!(five_of_five_function.asm[3], "OP_CHECKSIGADD");  // Variable reference
+    assert_eq!(five_of_five_function.asm[3], "OP_CHECKSIGADD"); // Variable reference
     assert_eq!(five_of_five_function.asm[4], "<signer2>");
-    assert_eq!(five_of_five_function.asm[5], "OP_CHECKSIGADD");  // Variable reference
+    assert_eq!(five_of_five_function.asm[5], "OP_CHECKSIGADD"); // Variable reference
     assert_eq!(five_of_five_function.asm[6], "<signer3>");
-    assert_eq!(five_of_five_function.asm[7], "OP_CHECKSIGADD");  // Variable reference
+    assert_eq!(five_of_five_function.asm[7], "OP_CHECKSIGADD"); // Variable reference
     assert_eq!(five_of_five_function.asm[8], "<signer4>");
-    assert_eq!(five_of_five_function.asm[9], "OP_CHECKSIGADD");  // Variable reference
+    assert_eq!(five_of_five_function.asm[9], "OP_CHECKSIGADD"); // Variable reference
     assert_eq!(five_of_five_function.asm[10], "OP_5");
     assert_eq!(five_of_five_function.asm[11], "OP_NUMEQUAL");
     assert_eq!(five_of_five_function.asm[12], "<SERVER_KEY>");
     assert_eq!(five_of_five_function.asm[13], "<serverSig>");
     assert_eq!(five_of_five_function.asm[14], "OP_CHECKSIG");
-    
+
     // Verify threeOfFive function with server variant
-    let three_of_five_function = output.functions.iter()
+    let three_of_five_function = output
+        .functions
+        .iter()
         .find(|f| f.name == "threeOfFive" && f.server_variant)
         .unwrap();
 
@@ -127,7 +133,7 @@ fn test_threshold_multisig() {
     assert_eq!(three_of_five_function.function_inputs.len(), 5);
 
     // Check require types
-    assert_eq!(three_of_five_function.require[0].req_type,"multisig");
+    assert_eq!(three_of_five_function.require[0].req_type, "multisig");
 
     // Check assembly instructions
     assert_eq!(three_of_five_function.asm.len(), 15);
@@ -148,7 +154,9 @@ fn test_threshold_multisig() {
     assert_eq!(three_of_five_function.asm[14], "OP_CHECKSIG");
 
     // Verify twoOfTwo function with exit path
-    let two_of_two_function = output.functions.iter()
+    let two_of_two_function = output
+        .functions
+        .iter()
         .find(|f| f.name == "twoOfTwo" && !f.server_variant)
         .unwrap();
 
@@ -156,7 +164,7 @@ fn test_threshold_multisig() {
     assert_eq!(two_of_two_function.function_inputs.len(), 2);
 
     // Check require types
-    assert_eq!(two_of_two_function.require[0].req_type,"multisig");
+    assert_eq!(two_of_two_function.require[0].req_type, "multisig");
 
     // Check function inputs
     assert_eq!(two_of_two_function.function_inputs.len(), 2);
@@ -174,7 +182,9 @@ fn test_threshold_multisig() {
     assert_eq!(two_of_two_function.asm[8], "OP_DROP");
 
     // Verify fiveOfFive function with exit path
-    let five_of_five_function = output.functions.iter()
+    let five_of_five_function = output
+        .functions
+        .iter()
         .find(|f| f.name == "fiveOfFive" && !f.server_variant)
         .unwrap();
 
@@ -182,20 +192,20 @@ fn test_threshold_multisig() {
     assert_eq!(five_of_five_function.function_inputs.len(), 5);
 
     // Check require types
-    assert_eq!(five_of_five_function.require[0].req_type,"multisig");
+    assert_eq!(five_of_five_function.require[0].req_type, "multisig");
 
     // Check assembly instructions
     assert_eq!(five_of_five_function.asm.len(), 15);
     assert_eq!(five_of_five_function.asm[0], "<signer>");
     assert_eq!(five_of_five_function.asm[1], "OP_CHECKSIG");
     assert_eq!(five_of_five_function.asm[2], "<signer1>");
-    assert_eq!(five_of_five_function.asm[3], "OP_CHECKSIGADD");  // Variable reference
+    assert_eq!(five_of_five_function.asm[3], "OP_CHECKSIGADD"); // Variable reference
     assert_eq!(five_of_five_function.asm[4], "<signer2>");
-    assert_eq!(five_of_five_function.asm[5], "OP_CHECKSIGADD");  // Variable reference
+    assert_eq!(five_of_five_function.asm[5], "OP_CHECKSIGADD"); // Variable reference
     assert_eq!(five_of_five_function.asm[6], "<signer3>");
-    assert_eq!(five_of_five_function.asm[7], "OP_CHECKSIGADD");  // Variable reference
+    assert_eq!(five_of_five_function.asm[7], "OP_CHECKSIGADD"); // Variable reference
     assert_eq!(five_of_five_function.asm[8], "<signer4>");
-    assert_eq!(five_of_five_function.asm[9], "OP_CHECKSIGADD");  // Variable reference
+    assert_eq!(five_of_five_function.asm[9], "OP_CHECKSIGADD"); // Variable reference
     assert_eq!(five_of_five_function.asm[10], "OP_5");
     assert_eq!(five_of_five_function.asm[11], "OP_NUMEQUAL");
     assert_eq!(five_of_five_function.asm[12], "144");
@@ -203,7 +213,9 @@ fn test_threshold_multisig() {
     assert_eq!(five_of_five_function.asm[14], "OP_DROP");
 
     // Verify threeOfFive function with exit path
-    let three_of_five_function = output.functions.iter()
+    let three_of_five_function = output
+        .functions
+        .iter()
         .find(|f| f.name == "threeOfFive" && !f.server_variant)
         .unwrap();
 
@@ -211,7 +223,7 @@ fn test_threshold_multisig() {
     assert_eq!(three_of_five_function.function_inputs.len(), 5);
 
     // Check require types
-    assert_eq!(three_of_five_function.require[0].req_type,"multisig");
+    assert_eq!(three_of_five_function.require[0].req_type, "multisig");
 
     // Check assembly instructions
     assert_eq!(three_of_five_function.asm.len(), 15);
@@ -258,7 +270,10 @@ contract ThresholdMultisig(
 }"#;
 
     let result = compile(threshold_multisig_code);
-    assert!(result.is_err(), "Expected compilation to fail for m > n threshold multisig");
+    assert!(
+        result.is_err(),
+        "Expected compilation to fail for m > n threshold multisig"
+    );
 }
 
 #[test]
@@ -270,11 +285,11 @@ fn test_threshold_multisig_cli() {
 
     // Write the contract to a file
     fs::write(&input_path, THRESHOLD_MULTISIG_CODE).unwrap();
-    
+
     // Compile the contract using the library
     let result = compile(THRESHOLD_MULTISIG_CODE);
     assert!(result.is_ok());
-    
+
     // Run the CLI command
     let status = std::process::Command::new(env!("CARGO_BIN_EXE_arkadec"))
         .arg(input_path.to_str().unwrap())
@@ -282,29 +297,29 @@ fn test_threshold_multisig_cli() {
         .arg(output_path.to_str().unwrap())
         .status()
         .expect("Failed to execute command");
-    
+
     assert!(status.success());
-    
+
     // Read the output file
     let actual_json_str = fs::read_to_string(&output_path).unwrap();
-    
+
     // Parse both JSONs to compare them ignoring the updatedAt field
     let mut expected_output = result.unwrap();
     expected_output.updated_at = None; // Remove the timestamp for comparison
     let expected_json_str = serde_json::to_string_pretty(&expected_output).unwrap();
-    
+
     let mut actual_json: Value = serde_json::from_str(&actual_json_str).unwrap();
     if let Some(obj) = actual_json.as_object_mut() {
         obj.remove("updatedAt"); // Remove the timestamp for comparison
     }
     let actual_json_str = serde_json::to_string_pretty(&actual_json).unwrap();
-    
+
     let mut expected_json: Value = serde_json::from_str(&expected_json_str).unwrap();
     if let Some(obj) = expected_json.as_object_mut() {
         obj.remove("updatedAt"); // Remove the timestamp for comparison
     }
     let expected_json_str = serde_json::to_string_pretty(&expected_json).unwrap();
-    
+
     // Compare the outputs
     assert_eq!(actual_json_str, expected_json_str);
-} 
+}

@@ -417,15 +417,13 @@ fn generate_function(
         asm.push("OP_DROP".to_string());
     }
 
-    Ok(
-        AbiFunction {
-            name: function.name.clone(),
-            function_inputs,
-            server_variant,
-            require,
-            asm,
-        }
-    )
+    Ok(AbiFunction {
+        name: function.name.clone(),
+        function_inputs,
+        server_variant,
+        require,
+        asm,
+    })
 }
 
 /// Generate N-of-N CHECKSIG chain assembly (Tapscript style)
@@ -561,7 +559,10 @@ fn generate_asm_from_statements(statements: &[Statement]) -> Result<Vec<String>,
 }
 
 /// Recursively generate assembly from statements
-fn generate_asm_from_statements_recursive(statements: &[Statement], asm: &mut Vec<String>) -> Result<(), String> {
+fn generate_asm_from_statements_recursive(
+    statements: &[Statement],
+    asm: &mut Vec<String>,
+) -> Result<(), String> {
     for stmt in statements {
         match stmt {
             Statement::Require(req) => {
@@ -636,7 +637,6 @@ fn generate_asm_from_statements_recursive(statements: &[Statement], asm: &mut Ve
                     // For other iterables, process body once (fallback)
                     generate_asm_from_statements_recursive(body, asm)?;
                 }
-
             }
             Statement::LetBinding { name: _, value } => {
                 // Emit the expression value onto the stack
@@ -670,8 +670,12 @@ fn generate_requirement_asm(req: &Requirement, asm: &mut Vec<String>) -> Result<
             asm.push(format!("<{}>", signature));
             asm.push("OP_CHECKSIGFROMSTACK".to_string());
             Ok(())
-        },
-        Requirement::CheckMultisig { signatures, pubkeys, threshold } => {
+        }
+        Requirement::CheckMultisig {
+            signatures,
+            pubkeys,
+            threshold,
+        } => {
             if signatures.is_empty() {
                 for (i, pubkey) in pubkeys.iter().enumerate() {
                     if i == 0 {
@@ -717,11 +721,17 @@ fn generate_requirement_asm(req: &Requirement, asm: &mut Vec<String>) -> Result<
                     asm.push("OP_CHECKMULTISIG".to_string());
                     Ok(())
                 } else {
-                    Err("Public keys or signatures have exceeded 20, the maximum number allowed".to_string())
+                    Err(
+                        "Public keys or signatures have exceeded 20, the maximum number allowed"
+                            .to_string(),
+                    )
                 }
             }
-        },
-        Requirement::After { blocks, timelock_var } => {
+        }
+        Requirement::After {
+            blocks,
+            timelock_var,
+        } => {
             if let Some(var) = timelock_var {
                 asm.push(format!("<{}>", var));
             } else {
