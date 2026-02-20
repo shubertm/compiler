@@ -15,6 +15,7 @@ options {
 contract HTLC(
   pubkey sender,
   pubkey receiver,
+  pubkey server,
   bytes hash,
   int refundTime
 ) {

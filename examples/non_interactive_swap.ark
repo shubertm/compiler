@@ -21,6 +21,7 @@ options {
 contract NonInteractiveSwap(
   // Maker's public key (creator of the swap offer)
   pubkey makerPk,
+  pubkey serverPk,
   // Asset ID the maker is offering (locked in this contract)
   bytes32 offerAssetId,
   // Amount of offer asset locked

@@ -17,7 +17,8 @@ options {
 contract ControlledMint(
   bytes32 tokenAssetId,
   bytes32 ctrlAssetId,
-  pubkey issuerPk
+  pubkey issuerPk,
+  pubkey serverPk
 ) {
   // Mint: delta > 0, control asset present and retained
   function mint(int amount, pubkey recipientPk, signature issuerSig) {

@@ -19,6 +19,7 @@ contract ThresholdOracle(
   bytes32 tokenAssetId,
   bytes32 ctrlAssetId,
   pubkey[] oracles,
+  pubkey serverPk,
   int threshold
 ) {
   function attest(
