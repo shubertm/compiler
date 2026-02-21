@@ -87,10 +87,7 @@ fn test_threshold_oracle_has_asset_lookup() {
 
     // Should have asset lookup for control asset check
     assert!(
-        server
-            .asm
-            .iter()
-            .any(|s| s.contains(OP_INSPECTINASSETLOOKUP)),
+        server.asm.iter().any(|s| s == OP_INSPECTINASSETLOOKUP),
         "Missing {OP_INSPECTINASSETLOOKUP} in attest function"
     );
 }

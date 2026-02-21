@@ -95,14 +95,14 @@ fn test_fee_adapter_contract() {
     // Should have 64-bit comparison opcodes for asset comparisons
     assert!(
         execute_asm.contains(OP_GREATERTHAN64),
-        "missing 64-bit comparison in execute: {}",
+        "missing {OP_GREATERTHAN64} in execute: {}",
         execute_asm
     );
 
     // Should also have standard comparison opcodes (fee >= minFee)
     assert!(
         execute_asm.contains(OP_GREATERTHANOREQUAL),
-        "missing comparison opcode in execute: {}",
+        "missing {OP_GREATERTHANOREQUAL} in execute: {}",
         execute_asm
     );
 

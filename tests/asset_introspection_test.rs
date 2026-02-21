@@ -89,7 +89,7 @@ fn test_asset_at_amount_parsing() {
     // Should have OP_NIP to extract amount (drops txid and gidx)
     assert!(
         asm_str.contains(OP_NIP),
-        "Expected OP_NIP for amount extraction in ASM: {}",
+        "Expected {OP_NIP} for amount extraction in ASM: {}",
         asm_str
     );
 }

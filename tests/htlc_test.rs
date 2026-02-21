@@ -1,6 +1,6 @@
 use arkade_compiler::compile;
 use arkade_compiler::opcodes::{
-    OP_2, OP_CHECKLOCKTIMEVERIFY, OP_CHECKMULTISIG, OP_CHECKSIG, OP_DROP, OP_EQUAL,
+    OP_2, OP_CHECKLOCKTIMEVERIFY, OP_CHECKMULTISIG, OP_CHECKSIG, OP_DROP, OP_EQUAL, OP_SHA256,
 };
 use serde_json::Value;
 use std::fs;
@@ -123,7 +123,7 @@ contract HTLC(
     assert_eq!(claim_function.asm[1], "<receiverSig>");
     assert_eq!(claim_function.asm[2], OP_CHECKSIG);
     assert_eq!(claim_function.asm[3], "<preimage>");
-    assert_eq!(claim_function.asm[4], "OP_SHA256");
+    assert_eq!(claim_function.asm[4], OP_SHA256);
     assert_eq!(claim_function.asm[5], "<hash>");
     assert_eq!(claim_function.asm[6], OP_EQUAL);
     assert_eq!(claim_function.asm[7], "<SERVER_KEY>");
