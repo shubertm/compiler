@@ -78,7 +78,6 @@ pub const OP_MUL64: &str = "OP_MUL64";
 pub const OP_DIV64: &str = "OP_DIV64";
 pub const OP_NEG64: &str = "OP_NEG64";
 
-
 // Introspection
 pub const OP_TXHASH: &str = "OP_TXHASH";
 pub const OP_TXWEIGHT: &str = "OP_TXWEIGHT";

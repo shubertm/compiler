@@ -1,5 +1,7 @@
 use arkade_compiler::compile;
-use arkade_compiler::opcodes::{OP_INSPECTLOCKTIME, OP_INSPECTNUMINPUTS, OP_INSPECTNUMOUTPUTS, OP_INSPECTVERSION, OP_TXWEIGHT};
+use arkade_compiler::opcodes::{
+    OP_INSPECTLOCKTIME, OP_INSPECTNUMINPUTS, OP_INSPECTNUMOUTPUTS, OP_INSPECTVERSION, OP_TXWEIGHT,
+};
 
 /// Test transaction introspection opcodes
 #[test]
@@ -19,16 +21,25 @@ fn test_tx_version() {
     "#;
 
     let result = compile(code);
-    assert!(result.is_ok(), "Failed to parse tx.version: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse tx.version: {:?}",
+        result.err()
+    );
 
     let output = result.unwrap();
-    let func = output.functions.iter()
+    let func = output
+        .functions
+        .iter()
         .find(|f| f.name == "checkVersion" && f.server_variant)
         .expect("Should have checkVersion server variant");
 
     let asm_str = func.asm.join(" ");
-    assert!(asm_str.contains(OP_INSPECTVERSION),
-        "Expected {OP_INSPECTVERSION} in ASM: {}", asm_str);
+    assert!(
+        asm_str.contains(OP_INSPECTVERSION),
+        "Expected {OP_INSPECTVERSION} in ASM: {}",
+        asm_str
+    );
 }
 
 #[test]
@@ -48,16 +59,25 @@ fn test_tx_locktime() {
     "#;
 
     let result = compile(code);
-    assert!(result.is_ok(), "Failed to parse tx.locktime: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse tx.locktime: {:?}",
+        result.err()
+    );
 
     let output = result.unwrap();
-    let func = output.functions.iter()
+    let func = output
+        .functions
+        .iter()
         .find(|f| f.name == "checkLocktime" && f.server_variant)
         .expect("Should have checkLocktime server variant");
 
     let asm_str = func.asm.join(" ");
-    assert!(asm_str.contains(OP_INSPECTLOCKTIME),
-        "Expected {OP_INSPECTLOCKTIME} in ASM: {}", asm_str);
+    assert!(
+        asm_str.contains(OP_INSPECTLOCKTIME),
+        "Expected {OP_INSPECTLOCKTIME} in ASM: {}",
+        asm_str
+    );
 }
 
 #[test]
@@ -77,16 +97,25 @@ fn test_tx_num_inputs() {
     "#;
 
     let result = compile(code);
-    assert!(result.is_ok(), "Failed to parse tx.numInputs: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse tx.numInputs: {:?}",
+        result.err()
+    );
 
     let output = result.unwrap();
-    let func = output.functions.iter()
+    let func = output
+        .functions
+        .iter()
         .find(|f| f.name == "checkInputs" && f.server_variant)
         .expect("Should have checkInputs server variant");
 
     let asm_str = func.asm.join(" ");
-    assert!(asm_str.contains(OP_INSPECTNUMINPUTS),
-        "Expected {OP_INSPECTNUMINPUTS} in ASM: {}", asm_str);
+    assert!(
+        asm_str.contains(OP_INSPECTNUMINPUTS),
+        "Expected {OP_INSPECTNUMINPUTS} in ASM: {}",
+        asm_str
+    );
 }
 
 #[test]
@@ -106,16 +135,25 @@ fn test_tx_num_outputs() {
     "#;
 
     let result = compile(code);
-    assert!(result.is_ok(), "Failed to parse tx.numOutputs: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse tx.numOutputs: {:?}",
+        result.err()
+    );
 
     let output = result.unwrap();
-    let func = output.functions.iter()
+    let func = output
+        .functions
+        .iter()
         .find(|f| f.name == "checkOutputs" && f.server_variant)
         .expect("Should have checkOutputs server variant");
 
     let asm_str = func.asm.join(" ");
-    assert!(asm_str.contains(OP_INSPECTNUMOUTPUTS),
-        "Expected {OP_INSPECTNUMOUTPUTS} in ASM: {}", asm_str);
+    assert!(
+        asm_str.contains(OP_INSPECTNUMOUTPUTS),
+        "Expected {OP_INSPECTNUMOUTPUTS} in ASM: {}",
+        asm_str
+    );
 }
 
 #[test]
@@ -135,14 +173,23 @@ fn test_tx_weight() {
     "#;
 
     let result = compile(code);
-    assert!(result.is_ok(), "Failed to parse tx.weight: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse tx.weight: {:?}",
+        result.err()
+    );
 
     let output = result.unwrap();
-    let func = output.functions.iter()
+    let func = output
+        .functions
+        .iter()
         .find(|f| f.name == "checkWeight" && f.server_variant)
         .expect("Should have checkWeight server variant");
 
     let asm_str = func.asm.join(" ");
-    assert!(asm_str.contains(OP_TXWEIGHT),
-        "Expected {OP_TXWEIGHT} in ASM: {}", asm_str);
+    assert!(
+        asm_str.contains(OP_TXWEIGHT),
+        "Expected {OP_TXWEIGHT} in ASM: {}",
+        asm_str
+    );
 }

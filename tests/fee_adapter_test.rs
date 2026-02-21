@@ -1,5 +1,8 @@
 use arkade_compiler::compile;
-use arkade_compiler::opcodes::{OP_VERIFY, OP_NOT, OP_EQUAL, OP_DUP, OP_1NEGATE, OP_CHECKSEQUENCEVERIFY, OP_CHECKSIG, OP_GREATERTHAN64, OP_GREATERTHANOREQUAL, OP_INSPECTINASSETLOOKUP, OP_INSPECTOUTASSETLOOKUP};
+use arkade_compiler::opcodes::{
+    OP_1NEGATE, OP_CHECKSEQUENCEVERIFY, OP_CHECKSIG, OP_DUP, OP_EQUAL, OP_GREATERTHAN64,
+    OP_GREATERTHANOREQUAL, OP_INSPECTINASSETLOOKUP, OP_INSPECTOUTASSETLOOKUP, OP_NOT, OP_VERIFY,
+};
 
 #[test]
 fn test_fee_adapter_contract() {
@@ -163,7 +166,10 @@ fn test_fee_adapter_contract() {
 
     // Should have N-of-N multisig requirement
     assert!(
-        execute_exit.require.iter().any(|r| r.req_type == "nOfNMultisig"),
+        execute_exit
+            .require
+            .iter()
+            .any(|r| r.req_type == "nOfNMultisig"),
         "missing nOfNMultisig requirement in exit path"
     );
 }

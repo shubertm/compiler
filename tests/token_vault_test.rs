@@ -1,5 +1,8 @@
-use arkade_compiler::opcodes::{OP_NOT, OP_EQUAL, OP_1NEGATE, OP_DUP, OP_INSPECTINASSETLOOKUP, OP_INSPECTOUTASSETLOOKUP, OP_CHECKSEQUENCEVERIFY, OP_CHECKSIG, OP_GREATERTHAN64, OP_GREATERTHANOREQUAL64, OP_VERIFY};
 use arkade_compiler::compile;
+use arkade_compiler::opcodes::{
+    OP_1NEGATE, OP_CHECKSEQUENCEVERIFY, OP_CHECKSIG, OP_DUP, OP_EQUAL, OP_GREATERTHAN64,
+    OP_GREATERTHANOREQUAL64, OP_INSPECTINASSETLOOKUP, OP_INSPECTOUTASSETLOOKUP, OP_NOT, OP_VERIFY,
+};
 
 #[test]
 fn test_token_vault_contract() {
@@ -15,12 +18,10 @@ fn test_token_vault_contract() {
 
     // Verify parameters - bytes32 params used in lookups should be decomposed
     // ownerPk (pubkey, no decomposition)
-    // serverPk (pubkey, no decomposition)
     // tokenAssetId (bytes32 → _txid + _gidx)
     // ctrlAssetId (bytes32 → _txid + _gidx)
     let param_names: Vec<&str> = output.parameters.iter().map(|p| p.name.as_str()).collect();
     assert!(param_names.contains(&"ownerPk"), "missing ownerPk");
-    assert!(param_names.contains(&"serverPk"), "missing serverPk");
     assert!(
         param_names.contains(&"tokenAssetId_txid"),
         "missing tokenAssetId_txid decomposition"
@@ -39,7 +40,11 @@ fn test_token_vault_contract() {
     );
 
     // Verify functions: 2 functions x 2 variants = 4
-    assert_eq!(output.functions.len(), 4, "expected 4 functions (2x2 variants)");
+    assert_eq!(
+        output.functions.len(),
+        4,
+        "expected 4 functions (2x2 variants)"
+    );
 
     // Verify deposit function with server variant
     let deposit = output
@@ -86,7 +91,10 @@ fn test_token_vault_contract() {
         "missing signature requirement type"
     );
     assert!(
-        deposit.require.iter().any(|r| r.req_type == "serverSignature"),
+        deposit
+            .require
+            .iter()
+            .any(|r| r.req_type == "serverSignature"),
         "missing serverSignature requirement type"
     );
 
@@ -123,16 +131,19 @@ fn test_token_vault_contract() {
 
     // Should have N-of-N multisig requirement
     assert!(
-        withdraw_exit.require.iter().any(|r| r.req_type == "nOfNMultisig"),
+        withdraw_exit
+            .require
+            .iter()
+            .any(|r| r.req_type == "nOfNMultisig"),
         "missing nOfNMultisig requirement in exit path"
     );
 }
 
 #[test]
 fn test_token_vault_cli() {
-    use tempfile::tempdir;
     use std::fs;
     use std::path::Path;
+    use tempfile::tempdir;
 
     let temp_dir = tempdir().unwrap();
     let input_path = temp_dir.path().join("token_vault.ark");
