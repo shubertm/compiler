@@ -499,6 +499,9 @@ pub fn infer_type(expr: &Expression, scope: &Scope) -> ArkType {
         }
         Expression::ArrayLength(_) => ArkType::Int,
 
+        // Contract instantiation resolves to a scriptPubKey bytes value.
+        Expression::ContractInstance { .. } => ArkType::Bytes,
+
         // Binary operations — type is determined by operand types and operator.
         Expression::BinaryOp { left, op, right } => {
             let lt = infer_type(left, scope);
