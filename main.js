@@ -8,11 +8,10 @@ import { generateBindings, AVAILABLE_TARGETS } from './codegen.js';
 const projects = {
     stability: {
         name: 'Stability',
-        description: 'Synthetic USD stablecoins with on-chain price beacon',
+        description: 'USD-denominated BTC positions with oracle-signed price witness',
         files: {
-            'beacon.ark': contracts.price_beacon,
-            'offer.ark': contracts.stability_offer,
-            'position.ark': contracts.stable_position,
+            'stability_vault.ark': contracts.stability_vault,
+            'stability_offer.ark': contracts.stability_offer,
         }
     }
 };
@@ -23,7 +22,6 @@ const examples = {
     htlc: { name: 'HTLC', code: contracts.htlc },
     fuji_safe: { name: 'FujiSafe', code: contracts.fuji_safe },
     swap: { name: 'NonInteractiveSwap', code: contracts.non_interactive_swap },
-    beacon: { name: 'Beacon', code: contracts.beacon },
 };
 
 // Global state
